@@ -3,7 +3,8 @@
 // 着陸ボタン連打・リロード・2タブ同時操作でも冪等になる。
 
 import { airportCodeOf as airportCode } from "@/domain/airport-search";
-import { haversineKm } from "@/domain/geo";
+import { flightPositionAt, haversineKm } from "@/domain/geo";
+import { ARRIVE_IF_PROGRESS_AT_LEAST, nearestAirport } from "@/domain/route-planner";
 import {
   abandonSession,
   completeOnTime,
@@ -20,6 +21,7 @@ import {
 } from "@/domain/session";
 import type { Airport, FlightSession, Subject } from "@/domain/types";
 import { newId } from "@/lib/id";
+import { loadAirports } from "./airports";
 import { getDb } from "./db";
 import { getPreferences } from "./settings";
 
@@ -129,9 +131,38 @@ export const pauseFlight = (id: string, nowMs?: () => number) => applyTransition
 export const resumeFlight = (id: string, nowMs?: () => number) => applyTransition(id, (s, now) => resumeSession(s, now, newId()), nowMs);
 export const abandonFlight = (id: string, reason?: string, nowMs?: () => number) => applyTransition(id, (s, now) => abandonSession(s, now, reason), nowMs);
 
+/**
+ * 早期着陸。目的地の手前（進捗90%未満）で降りた場合は、その時点の機体位置から
+ * 最寄りの空港へダイバートしたものとして記録し、そこが次の出発地（現在地）になる。
+ */
 export async function landFlightEarly(id: string, nowMs?: () => number): Promise<FlightSession> {
   const { earlyLandingMinSeconds } = await getPreferences();
-  return applyTransition(id, (s, now) => landEarly(s, now, earlyLandingMinSeconds), nowMs);
+  const { airports, byId } = await loadAirports();
+  return applyTransition(
+    id,
+    (s, now) => {
+      const result = landEarly(s, now, earlyLandingMinSeconds);
+      if (result.noop || result.session.completionType !== "early") return result;
+      return { ...result, session: applyDiversion(result.session, byId, airports) };
+    },
+    nowMs,
+  );
+}
+
+export function applyDiversion(session: FlightSession, byId: Map<string, Airport>, airports: readonly Airport[]): FlightSession {
+  const progress = (session.actualFocusSeconds ?? 0) / session.plannedSeconds;
+  const o = byId.get(session.originAirportId);
+  const d = byId.get(session.destinationAirportId);
+  if (progress >= ARRIVE_IF_PROGRESS_AT_LEAST || !o || !d) return session;
+  const here = flightPositionAt([o.lng, o.lat], [d.lng, d.lat], progress);
+  const landed = nearestAirport(here.position, airports);
+  if (!landed || landed.id === d.id) return session;
+  return {
+    ...session,
+    landedAirportId: landed.id,
+    landedCode: airportCode(landed),
+    distanceKm: Math.round(haversineKm([o.lng, o.lat], [landed.lng, landed.lat]) * 10) / 10,
+  };
 }
 
 /** 予定時間に到達していれば完了を確定する。未到達なら現状を返す。何度呼んでも安全。 */

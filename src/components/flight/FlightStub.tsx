@@ -3,8 +3,8 @@ import { SubjectBadge } from "@/components/ui/SubjectBadge";
 import { formatDateTime, formatDuration } from "@/domain/format";
 import type { FlightSession } from "@/domain/types";
 
-export function statusLabel(s: Pick<FlightSession, "status" | "completionType">): { text: string; tone: string } {
-  if (s.status === "completed") return s.completionType === "early" ? { text: "早期着陸", tone: "text-gold" } : { text: "定刻着陸", tone: "text-ok" };
+export function statusLabel(s: Pick<FlightSession, "status" | "completionType" | "landedAirportId">): { text: string; tone: string } {
+  if (s.status === "completed") return s.completionType === "early" ? { text: s.landedAirportId ? "早期着陸（ダイバート）" : "早期着陸", tone: "text-gold" } : { text: "定刻着陸", tone: "text-ok" };
   if (s.status === "abandoned") return { text: "欠航（記録外）", tone: "text-danger" };
   if (s.status === "paused") return { text: "一時停止中", tone: "text-gold" };
   if (s.status === "active") return { text: "飛行中", tone: "text-sky" };
@@ -27,7 +27,10 @@ export function FlightStub({ session: s, timezone, href, onClick }: { session: F
           <span className="relative h-px flex-1 border-t border-dashed border-line" aria-hidden>
             <span className="absolute -top-[7px] left-1/2 -translate-x-1/2 text-[11px] text-mute">✈︎</span>
           </span>
-          <span className="tabular text-lg font-bold tracking-wide">{s.destinationCode}</span>
+          <span className="tabular text-lg font-bold tracking-wide">
+            {s.landedCode ?? s.destinationCode}
+            {s.landedCode && <span className="ml-1 text-[10px] font-semibold text-gold">ダイバート</span>}
+          </span>
         </div>
         <div className="mt-1 flex items-center justify-between gap-2 text-xs text-mute">
           <span className="truncate">

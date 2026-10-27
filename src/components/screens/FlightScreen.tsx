@@ -14,6 +14,7 @@ import { abandonFlight, completeIfDue, landFlightEarly, pauseFlight, resumeFligh
 import { formatClock, formatKm, percent } from "@/domain/format";
 import { flightPositionAt, type LngLat } from "@/domain/geo";
 import { earlyLandingOutcome, elapsedSeconds, hasClockAnomaly, progressOf, remainingSeconds } from "@/domain/session";
+import { ARRIVE_IF_PROGRESS_AT_LEAST } from "@/domain/route-planner";
 import type { SoundMode } from "@/domain/types";
 import { usePreferences, useSession } from "@/features/data-hooks";
 import { useAirports } from "@/features/useAirports";
@@ -117,7 +118,10 @@ export function FlightScreen() {
           }
         : {
             title: "早期着陸しますか？",
-            message: `ここまでの集中時間 ${formatClock(elapsedSeconds(session, Date.now()))} を記録して着陸します。`,
+            message:
+              progressOf(session, Date.now()) >= ARRIVE_IF_PROGRESS_AT_LEAST
+                ? `ここまでの集中時間 ${formatClock(elapsedSeconds(session, Date.now()))} を記録して、${session.destinationCode} に着陸します。`
+                : `ここまでの集中時間 ${formatClock(elapsedSeconds(session, Date.now()))} を記録します。${session.destinationCode} の手前なので、いま飛んでいる地点から最寄りの空港にダイバートし、次はそこから出発します。`,
             confirmLabel: "着陸する",
           },
     );

@@ -53,7 +53,8 @@ export function ArrivalScreen() {
 
   if (!session || session.status !== "completed") return <main className="min-h-dvh" aria-busy="true" />;
 
-  const dest = byId.get(session.destinationAirportId);
+  const dest = byId.get(session.landedAirportId ?? session.destinationAirportId);
+  const planned = byId.get(session.destinationAirportId);
   const noteValue = note ?? session.note ?? "";
   const bonus = hasArrivalBonus(session);
   const tz = stats?.timezone ?? "UTC";
@@ -84,8 +85,13 @@ export function ArrivalScreen() {
         <p className="text-xs font-semibold tracking-[0.25em] text-ok">{session.completionType === "early" ? "EARLY LANDING" : "ARRIVED ON TIME"}</p>
         <h1 className="mt-1 text-[26px] font-bold">{dest ? airportDisplayName(dest) : session.destinationCode} に到着</h1>
         <p className="tabular text-sm text-mute">
-          {session.originCode} → {session.destinationCode} · 着陸 {formatTime(session.completedAt, tz)}
+          {session.originCode} → {session.landedCode ?? session.destinationCode} · 着陸 {formatTime(session.completedAt, tz)}
         </p>
+        {session.landedAirportId && (
+          <p className="mt-2 rounded-2xl border border-gold/40 bg-gold/10 px-3 py-2 text-xs text-gold">
+            予定していた {planned ? airportDisplayName(planned) : session.destinationCode} の手前で降りたため、最寄りの空港にダイバートしました。次はここから出発します。
+          </p>
+        )}
       </section>
 
       <Card className="grid grid-cols-2 gap-4">

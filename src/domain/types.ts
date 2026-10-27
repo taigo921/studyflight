@@ -73,6 +73,9 @@ export interface FlightSession {
   actualFocusSeconds?: number | null;
   completionType?: CompletionType | null;
   abandonmentReason?: string | null;
+  /** 早期着陸でダイバートした場合に実際に着陸した空港（null/未設定なら目的地に到着） */
+  landedAirportId?: string | null;
+  landedCode?: string | null;
   distanceKm: number;
   earnedSkyPoints: number;
   note?: string;

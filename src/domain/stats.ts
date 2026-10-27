@@ -4,6 +4,7 @@
 // actualFocusSeconds（整数秒）を最大剰余法で各日に配分する。これにより
 // ログ・分析・目標・パスポートの数字が必ず一致する。
 
+import { arrivalAirportId } from "./route-planner";
 import type { FlightSession, FocusSegment, UUID } from "./types";
 import { addDays, dayKey, daysBetween, monthKey, splitIntervalByDay, weekdayIndex, weekStart, zonedParts, type DayKey } from "./zoned";
 
@@ -187,7 +188,7 @@ export function visitedAirports(sessions: FlightSession[]): Map<string, { firstV
   const map = new Map<string, { firstVisitedAt: string; visits: number }>();
   const done = sessions.filter((s) => s.status === "completed").sort((a, b) => (a.completedAt ?? "").localeCompare(b.completedAt ?? ""));
   for (const s of done) {
-    for (const id of [s.originAirportId, s.destinationAirportId]) {
+    for (const id of [s.originAirportId, arrivalAirportId(s)]) {
       const cur = map.get(id);
       if (cur) cur.visits++;
       else map.set(id, { firstVisitedAt: s.completedAt ?? s.updatedAt, visits: 1 });

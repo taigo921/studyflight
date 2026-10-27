@@ -9,9 +9,9 @@
 - テスト結果（最終実行）:
   - `npm run lint` … 0 errors / 0 warnings
   - `npm run typecheck` … OK
-  - `npm test` … 8 files / 70 tests passed
+  - `npm test` … 80 tests passed
   - `npm run build` … 14 routes 静的エクスポート、SW 107 ファイルをプリキャッシュ
-  - `npm run test:e2e` … 7 passed（iPhone 13 サイズの Chromium）
+  - `npm run test:e2e` … 9 passed（iPhone 13 サイズの Chromium）
 
 ## 再開時のコマンド
 
@@ -54,6 +54,10 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 10. **科目色**は暗背景で CVD 検証済みの8色カテゴリ配色。グラフでは上位7科目 + 「その他」に集約。
 11. **連続日数の基準**は目標設定の `minimumStreakMinutes`（初期10分）。今日未達でも昨日まで続いていれば継続中。
 12. 早期着陸の閾値は設定で変更可能（初期5分）。
+13. **旅の仕組み**（2026-10-28 要望）: 学習時間 → 距離の換算は巡航速度 800km/h（25分≈333km、60分≈800km、90分≈1,200km）。候補は所要時間が学習時間の ±15%（最低±5分）、少なければ ±30/50/80% と広げ、最低8件。対象は IATA コードを持つ large/medium 空港。
+14. **現在地** = 最後に完了したフライトの着陸空港（なければホーム空港）。放棄（欠航）では移動しない。
+15. **ダイバート**: 早期着陸で進捗90%未満なら、その時点の機体位置に最も近い空港に着陸したものとして `landedAirportId/landedCode` を保存し、`distanceKm` は実際に飛んだ距離にする。訪問空港・現在地・軌跡・航路ログは着陸空港を使う。
+16. 手動で出発地を変えた場合、軌跡は「/」で区切って表示する。
 
 ## 未完了・次にやること
 
@@ -77,6 +81,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 | 2026-10-27 | Phase 0〜3 実装、Phase 4（PWA/SW/E2E/README） | lint/型/unit 70/build/E2E 7 すべて成功 | 実機検証・デプロイは要許可 |
 | 2026-10-27 | サブパス配信（NEXT_PUBLIC_BASE_PATH）対応、GitHub Pages ワークフロー追加 | /studyflight 配下で 3D・SW・データ取得を確認、ルート配信の E2E 7 件も再成功 | リポジトリ作成待ち |
 | 2026-10-28 | GitHub に push、Pages 有効化、Actions でデプロイ | CI: lint/型/テスト/ビルド/デプロイ 成功 | 実機確認待ち |
+| 2026-10-28 | 旅の仕組み（時間→行き先候補、現在地、軌跡、ダイバート） | unit 80 / E2E 9 成功 | 実機での操作感の確認待ち |
 
 ## 未決事項
 

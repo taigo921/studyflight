@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { FlightStub } from "@/components/flight/FlightStub";
+import { JourneyCard } from "@/components/flight/JourneyCard";
+import { useAirports } from "@/features/useAirports";
+import { currentLocationId } from "@/domain/route-planner";
 import { IconChevronRight, IconPlane, IconSettings, IconStreak, IconTarget } from "@/components/icons/Icons";
 import { LinkButton } from "@/components/ui/Button";
 import { Card, EmptyState, SectionTitle } from "@/components/ui/Card";
@@ -19,6 +22,9 @@ export function HomeScreen() {
   const open = useOpenFlight();
   const boarding = useBoardingFlight();
   const prefs = usePreferences();
+  const { byId } = useAirports();
+  const currentId = stats ? currentLocationId(stats.sessions, prefs.homeAirportId) : null;
+  const currentAirport = currentId ? (byId.get(currentId) ?? null) : null;
 
   const todayRatio = stats ? stats.todaySeconds / Math.max(1, stats.dailyGoalSeconds) : 0;
   const leftSeconds = stats ? Math.max(0, stats.dailyGoalSeconds - stats.todaySeconds) : 0;
@@ -75,6 +81,8 @@ export function HomeScreen() {
           </Link>
         )}
 
+        <JourneyCard current={currentAirport} sessions={stats?.sessions ?? []} byId={byId} />
+
         <Card className="relative overflow-hidden">
           <div className="flex items-center gap-5">
             <ProgressRing value={todayRatio} size={116} stroke={10} label={`今日の目標達成率 ${percent(todayRatio)}`} color={todayRatio >= 1 ? "var(--color-ok)" : "var(--color-sky)"}>
@@ -119,7 +127,7 @@ export function HomeScreen() {
 
         {!open && (
           <LinkButton href="/boarding/" size="lg" className="w-full shadow-[0_10px_30px_rgba(102,179,255,0.25)]">
-            <IconPlane /> 新しいフライト
+            <IconPlane /> {currentAirport ? `${currentAirport.iata ?? currentAirport.id} から次のフライトへ` : "新しいフライト"}
           </LinkButton>
         )}
 

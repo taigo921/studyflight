@@ -44,6 +44,7 @@ const [header, ...rows] = parseCsv(readFileSync(input, "utf8"));
 const col = Object.fromEntries(header.map((h, i) => [h, i]));
 const TYPES = { large_airport: "L", medium_airport: "M" };
 const CJK = /[぀-ヿ㐀-鿿]/;
+const MILITARY = /\b(Air Base|Airbase|AFB|Air Force|Naval Air|Naval Station|Army Air|JMSDF|JASDF|Military|Marine Corps)\b/i;
 
 const out = [];
 for (const r of rows) {
@@ -56,6 +57,8 @@ for (const r of rows) {
   const iata = r[col.iata_code] || "";
   const icao = r[col.icao_code] || r[col.gps_code] || "";
   if (!ident || (!iata && !icao)) continue;
+  // 定期便のない軍用基地は旅の行き先にならないので除外（小牧のような共用空港は定期便ありとして残る）
+  if (MILITARY.test(r[col.name]) && r[col.scheduled_service] !== "yes") continue;
   const keywordsJa = (r[col.keywords] || "")
     .split(",")
     .map((s) => s.trim())

@@ -10,6 +10,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { airportCodeOf, airportDisplayName } from "@/domain/airport-search";
 import { countryName, formatKm, formatPoints } from "@/domain/format";
 import type { LngLat } from "@/domain/geo";
+import { arrivalAirportId, arrivalCode } from "@/domain/route-planner";
 import { RANKS } from "@/domain/scoring";
 import { usePreferences } from "@/features/data-hooks";
 import { useAirports } from "@/features/useAirports";
@@ -33,12 +34,13 @@ export function PassportScreen() {
     const map = new Map<string, { key: string; label: string; count: number; km: number; a: LngLat | null; b: LngLat | null }>();
     for (const s of stats.sessions) {
       if (s.status !== "completed") continue;
-      const key = `${s.originAirportId}>${s.destinationAirportId}`;
+      const to = arrivalAirportId(s);
+      const key = `${s.originAirportId}>${to}`;
       const o = byId.get(s.originAirportId);
-      const d = byId.get(s.destinationAirportId);
+      const d = byId.get(to);
       const cur = map.get(key);
       if (cur) cur.count++;
-      else map.set(key, { key, label: `${s.originCode} → ${s.destinationCode}`, count: 1, km: s.distanceKm, a: o ? [o.lng, o.lat] : null, b: d ? [d.lng, d.lat] : null });
+      else map.set(key, { key, label: `${s.originCode} → ${arrivalCode(s)}`, count: 1, km: s.distanceKm, a: o ? [o.lng, o.lat] : null, b: d ? [d.lng, d.lat] : null });
     }
     return [...map.values()].sort((x, y) => y.count - x.count);
   }, [stats, byId]);

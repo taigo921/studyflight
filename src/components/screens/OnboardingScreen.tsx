@@ -72,7 +72,7 @@ export function OnboardingScreen() {
                 ひとつのフライトに。
               </h1>
               <p className="mt-4 text-[15px] text-mute">
-                科目と行き先を選んで搭乗券を発行。集中している間、地球儀の上を飛行機が進みます。着陸すると学習時間・マイル（SkyPoints）・訪れた空港が記録されます。
+                勉強する時間を決めると、今いる空港からその時間で飛べる行き先が選べます。集中している間は地球儀の上を飛行機が進み、着陸した空港から次の旅が続きます。学習時間・SkyPoints・訪れた空港はすべて記録されます。
               </p>
             </div>
             <ul className="flex flex-col gap-2 text-sm text-mute">
@@ -137,9 +137,9 @@ export function OnboardingScreen() {
           <section className="animate-fade-up flex flex-col gap-5 py-6" aria-labelledby="ob-home">
             <div>
               <h1 id="ob-home" className="text-2xl font-bold">
-                ホーム空港を選びましょう
+                旅のスタート地点を選びましょう
               </h1>
-              <p className="mt-1 text-sm text-mute">最初のフライトの出発地になります（任意）。</p>
+              <p className="mt-1 text-sm text-mute">最初のフライトはここから出発します。着陸した空港が次の出発地になり、勉強するほど旅が続いていきます。</p>
             </div>
             <AirportCombobox label="ホーム" value={home} onChange={setHome} airports={airports} recent={[]} suggested={suggested} />
             <label className="flex flex-col gap-2">

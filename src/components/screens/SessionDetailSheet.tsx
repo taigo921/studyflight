@@ -29,7 +29,8 @@ export function SessionDetailSheet({ session, timezone, onClose }: { session: Fl
   const [subjectId, setSubjectId] = useState(session.subjectId);
   const st = statusLabel(session);
   const o = byId.get(session.originAirportId);
-  const d = byId.get(session.destinationAirportId);
+  const d = byId.get(session.landedAirportId ?? session.destinationAirportId);
+  const plannedDest = byId.get(session.destinationAirportId);
   const open = session.status === "active" || session.status === "paused";
   const dirty = note !== (session.note ?? "") || subjectId !== session.subjectId;
 
@@ -57,7 +58,7 @@ export function SessionDetailSheet({ session, timezone, onClose }: { session: Fl
     <Sheet
       open
       onClose={onClose}
-      title={`${session.originCode} → ${session.destinationCode}`}
+      title={`${session.originCode} → ${session.landedCode ?? session.destinationCode}`}
       footer={
         open ? (
           <LinkButton href={`/flight/?id=${session.id}`} className="w-full">
@@ -87,6 +88,11 @@ export function SessionDetailSheet({ session, timezone, onClose }: { session: Fl
           {d ? airportDisplayName(d) : session.destinationCode}
           <span className="block text-xs text-mute">{formatDateTime(session.completedAt, timezone)}</span>
         </Row>
+        {session.landedAirportId && (
+          <Row label="当初の目的地">
+            <span className="text-gold">{plannedDest ? airportDisplayName(plannedDest) : session.destinationCode}（ダイバート）</span>
+          </Row>
+        )}
         <Row label="集中時間">
           <span className="tabular font-semibold">{formatDuration(session.actualFocusSeconds ?? session.accumulatedFocusSeconds)}</span>
           <span className="text-mute"> / 予定 {formatDuration(session.plannedSeconds)}</span>

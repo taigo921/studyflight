@@ -53,5 +53,6 @@ export const useUI = create<UIState>((set, get) => ({
   },
 }));
 
-export const toast = (message: string, tone?: ToastTone, action?: Toast["action"]) => useUI.getState().pushToast(message, tone, action);
+/** 操作ボタン付きの通知は読んで押す時間が要るので長めに表示する。 */
+export const toast = (message: string, tone?: ToastTone, action?: Toast["action"]) => useUI.getState().pushToast(message, tone, action, action ? 8000 : 3600);
 export const confirmDialog = (req: Omit<ConfirmRequest, "resolve">) => useUI.getState().askConfirm(req);

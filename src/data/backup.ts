@@ -52,6 +52,8 @@ const SessionSchema = z.object({
   actualFocusSeconds: z.number().min(0).nullable().optional(),
   completionType: z.enum(["on_time", "early"]).nullable().optional(),
   abandonmentReason: z.string().nullable().optional(),
+  landedAirportId: z.string().nullable().optional(),
+  landedCode: z.string().nullable().optional(),
   distanceKm: z.number().min(0),
   earnedSkyPoints: z.number().int().min(0),
   note: z.string().max(5000).optional(),

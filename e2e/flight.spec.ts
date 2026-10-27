@@ -145,3 +145,45 @@ test("オフラインでもアプリシェルを開いてフライトを開始�
   await expect(page.getByTestId("flight-screen")).toHaveAttribute("data-status", "paused");
   await context.setOffline(false);
 });
+
+test("旅がつながる: 着陸した空港が次の出発地になり、時間に応じた候補から選べる", async ({ page }) => {
+  await page.clock.install({ time: T0 });
+  await skipOnboarding(page);
+
+  // 1便目: 中部 → 羽田（25分）
+  await startFlight(page, "NGO", "HND", 25);
+  await page.clock.fastForward("25:30");
+  await page.waitForURL("**/arrival/**");
+  await page.getByRole("button", { name: "保存して閉じる" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await expect(page.getByRole("region", { name: "現在地と旅の軌跡" })).toContainText("HND");
+
+  // 2便目: 出発地を指定しない → 現在地の羽田から。60分の候補に新千歳がある
+  await page.goto("/boarding/");
+  await page.getByRole("radio", { name: "60分" }).click();
+  await expect(page.getByText("現在地").locator("..")).toContainText("HND");
+  await expect(page.getByRole("radiogroup", { name: "行き先の候補" }).getByRole("radio", { name: /^CTS/ })).toBeVisible();
+  await startFlight(page, null, "CTS", 60);
+  await page.clock.fastForward("01:00:30");
+  await page.waitForURL("**/arrival/**");
+  await page.getByRole("button", { name: "保存して閉じる" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await expect(page.getByRole("list", { name: "これまでの旅" })).toHaveText(/NGO\s*→\s*HND\s*→\s*CTS/);
+});
+
+test("途中で早期着陸すると最寄り空港にダイバートし、そこが次の出発地になる", async ({ page }) => {
+  await page.clock.install({ time: T0 });
+  await skipOnboarding(page);
+  await startFlight(page, "HND", "OKA", 150);
+  await page.clock.fastForward("01:00:00");
+  await page.getByRole("button", { name: "早期着陸" }).click();
+  await expect(page.getByRole("dialog")).toContainText("ダイバート");
+  await page.getByRole("button", { name: "着陸する" }).click();
+  await page.waitForURL("**/arrival/**");
+  await expect(page.getByText(/最寄りの空港にダイバートしました/)).toBeVisible();
+  await page.getByRole("button", { name: "保存して閉じる" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  const current = await page.getByRole("region", { name: "現在地と旅の軌跡" }).textContent();
+  expect(current).not.toContain("OKA");
+  expect(current).not.toMatch(/現在地HND/);
+});

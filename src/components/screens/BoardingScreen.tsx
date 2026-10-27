@@ -4,16 +4,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AirportCombobox } from "@/components/flight/AirportCombobox";
 import { BoardingPass, flightNumber } from "@/components/flight/BoardingPass";
+import { DestinationPicker } from "@/components/flight/DestinationPicker";
 import { DurationPicker } from "@/components/flight/DurationPicker";
 import { SubjectPicker, TaskPicker } from "@/components/flight/SubjectPicker";
-import { IconPlane, IconSeat, IconSwap } from "@/components/icons/Icons";
+import { IconPlane, IconSeat } from "@/components/icons/Icons";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SUGGESTED_AIRPORT_IDS } from "@/data/core-airports";
 import { abandonFlight, departFlight, issueBoardingPass, OpenFlightExistsError, randomSeat } from "@/data/sessions";
 import { ensureUsableSubject } from "@/data/subjects";
-import { airportCodeOf } from "@/domain/airport-search";
+import { airportCodeOf, airportDisplayName } from "@/domain/airport-search";
+import { flightMinutesFor, reachableKm, currentLocationId, destinationCandidates, arrivalAirportId } from "@/domain/route-planner";
+import { visitedAirports } from "@/domain/stats";
 import { haversineKm } from "@/domain/geo";
 import type { Airport } from "@/domain/types";
 import { useBoardingFlight, useOpenFlight, usePreferences, useSessions, useSubjects, useTasks } from "@/features/data-hooks";
@@ -45,7 +48,8 @@ export function BoardingScreen() {
   const [subjectChoice, setSubjectId] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [originChoice, setOrigin] = useState<Airport | null>(null);
-  const [destination, setDestination] = useState<Airport | null>(null);
+  // 行き先: 候補から選んだもの、または「リストにない空港」から手動で選んだもの
+  const [destChoice, setDestChoice] = useState<{ airport: Airport; manual: boolean } | null>(null);
   const [minutes, setMinutes] = useState<number | null>(25);
   const [seat, setSeat] = useState(randomSeat);
   const [busy, setBusy] = useState(false);
@@ -62,17 +66,21 @@ export function BoardingScreen() {
     if (!subjects || subjects.length === 0) return null;
     return (subjects.find((s) => s.id === lastCompleted?.subjectId) ?? subjects[0]).id;
   }, [subjectChoice, subjects, lastCompleted]);
-  const origin = useMemo(() => {
-    if (originChoice) return originChoice;
-    const id = lastCompleted?.destinationAirportId ?? prefs.homeAirportId;
-    const a = id ? byId.get(id) : undefined;
-    return a && a.id !== destination?.id ? a : null;
-  }, [originChoice, lastCompleted, prefs.homeAirportId, byId, destination]);
+  // 出発地 = 現在地（前回着陸した空港）。初回はホーム空港
+  const currentId = useMemo(() => (sessions ? currentLocationId(sessions, prefs.homeAirportId) : null), [sessions, prefs.homeAirportId]);
+  const origin = originChoice ?? (currentId ? (byId.get(currentId) ?? null) : null);
+  const visited = useMemo(() => new Set(sessions ? visitedAirports(sessions).keys() : []), [sessions]);
+  // 学習時間を変えて候補から外れたら選択を解除する（手動で選んだ空港は維持）
+  const destination = useMemo(() => {
+    if (!destChoice || !origin || minutes === null || destChoice.airport.id === origin.id) return null;
+    if (destChoice.manual) return destChoice.airport;
+    return destinationCandidates(origin, minutes, airports).some((c) => c.airport.id === destChoice.airport.id) ? destChoice.airport : null;
+  }, [destChoice, origin, minutes, airports]);
   const tasks = useTasks(subjectId);
 
   const recent = useMemo(() => {
     const ids: string[] = [];
-    for (const s of sessions ?? []) for (const id of [s.destinationAirportId, s.originAirportId]) if (!ids.includes(id)) ids.push(id);
+    for (const s of sessions ?? []) for (const id of [arrivalAirportId(s), s.originAirportId]) if (!ids.includes(id)) ids.push(id);
     if (prefs.homeAirportId && !ids.includes(prefs.homeAirportId)) ids.unshift(prefs.homeAirportId);
     return ids.map((id) => byId.get(id)).filter((a): a is Airport => !!a).slice(0, 6);
   }, [sessions, byId, prefs.homeAirportId]);
@@ -175,31 +183,48 @@ export function BoardingScreen() {
           )}
         </Step>
 
-        <Step n={2} title="どこへ飛びますか？">
-          <div className="relative flex flex-col gap-2">
-            <AirportCombobox label="出発" value={origin} onChange={setOrigin} airports={airports} recent={recent} suggested={suggested} exclude={destination?.id} />
-            <AirportCombobox label="到着" value={destination} onChange={setDestination} airports={airports} recent={recent} suggested={suggested} exclude={origin?.id} />
-            <button
-              type="button"
-              aria-label="出発地と到着地を入れ替える"
-              onClick={() => {
-                setOrigin(destination);
-                setDestination(origin);
-              }}
-              className="absolute top-1/2 right-12 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-elevated text-sky shadow-lg"
-            >
-              <IconSwap size={20} />
-            </button>
+        <Step n={2} title="何分集中しますか？">
+          <DurationPicker value={minutes} onChange={setMinutes} />
+          {minutes !== null && <p className="px-1 text-xs text-mute">ジェット機の巡航速度（約800km/h）で、約{Math.round(reachableKm(minutes)).toLocaleString("ja-JP")}km 先まで飛べます。</p>}
+        </Step>
+
+        <Step n={3} title="どこへ飛びますか？">
+          <div className="flex items-center gap-3 rounded-2xl border border-line/70 bg-surface/70 px-4 py-3">
+            <span className="text-[10px] font-semibold tracking-[0.14em] text-mute uppercase">現在地</span>
+            {origin ? (
+              <span className="min-w-0 flex-1">
+                <span className="tabular mr-2 text-lg font-bold">{airportCodeOf(origin)}</span>
+                <span className="text-sm">{airportDisplayName(origin)}</span>
+              </span>
+            ) : (
+              <span className="flex-1 text-sm text-mute">出発する空港を選んでください</span>
+            )}
           </div>
+          {!origin ? (
+            <AirportCombobox label="出発" value={null} onChange={setOrigin} airports={airports} recent={recent} suggested={suggested} />
+          ) : minutes === null ? (
+            <p className="text-sm text-mute">集中する時間を決めると、行き先の候補が表示されます。</p>
+          ) : (
+            <>
+              <DestinationPicker origin={origin} minutes={minutes} airports={airports} visited={visited} value={destination} onChange={(a) => setDestChoice({ airport: a, manual: false })} />
+              <details className="rounded-2xl border border-line/60 bg-surface/40 px-4 py-2 text-sm">
+                <summary className="min-h-11 cursor-pointer content-center text-mute">リストにない空港へ飛ぶ・出発地を変える</summary>
+                <div className="flex flex-col gap-3 pt-2 pb-2">
+                  <AirportCombobox label="到着" value={destChoice?.manual ? destChoice.airport : null} onChange={(a) => setDestChoice({ airport: a, manual: true })} airports={airports} recent={recent} suggested={suggested} exclude={origin.id} />
+                  {destination && destChoice?.manual && distanceKm !== undefined && Math.abs(flightMinutesFor(distanceKm) - (minutes ?? 0)) > (minutes ?? 0) * 0.5 && (
+                    <p className="text-xs text-gold">この距離は飛行時間の目安（約{Math.round(flightMinutesFor(distanceKm))}分）と学習時間が大きく異なります。飛行機は学習時間に合わせて進みます。</p>
+                  )}
+                  <AirportCombobox label="出発" value={originChoice} onChange={(a) => (setOrigin(a), setDestChoice(null))} airports={airports} recent={recent} suggested={suggested} />
+                  <p className="text-xs text-mute">ふだんは前回着陸した空港から出発します。ここで変えると旅の軌跡はいったん区切られます。</p>
+                </div>
+              </details>
+            </>
+          )}
           {sameAirport && (
             <p className="text-sm text-danger" role="alert">
               出発地と到着地は別の空港を選んでください
             </p>
           )}
-        </Step>
-
-        <Step n={3} title="集中する時間">
-          <DurationPicker value={minutes} onChange={setMinutes} />
           <button type="button" onClick={() => setSeat(randomSeat())} className="flex min-h-11 items-center gap-2 self-start rounded-full px-1 text-sm text-mute hover:text-ink">
             <IconSeat size={20} /> 座席 <span className="tabular font-semibold text-ink">{seat}</span>
             <span className="text-xs text-sky">変更</span>
@@ -224,7 +249,7 @@ export function BoardingScreen() {
           <Button size="lg" disabled={!canIssue} onClick={issue} className="w-full">
             搭乗券を発行
           </Button>
-          {!origin || !destination ? <p className="text-center text-xs text-mute">出発地と到着地を選ぶと発行できます</p> : null}
+          {!origin || !destination ? <p className="text-center text-xs text-mute">行き先を選ぶと発行できます</p> : null}
         </section>
       </div>
     </main>
