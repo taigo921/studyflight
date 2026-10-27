@@ -12,10 +12,10 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
   icons: {
     icon: [
-      { url: withBase("/icons/icon-192.png"), sizes: "192x192", type: "image/png" },
+      { url: withBase("/icons/icon-192.png?v=2"), sizes: "192x192", type: "image/png" },
       { url: withBase("/icons/icon.svg"), type: "image/svg+xml" },
     ],
-    apple: [{ url: withBase("/icons/apple-touch-icon.png"), sizes: "180x180" }],
+    apple: [{ url: withBase("/icons/apple-touch-icon.png?v=2"), sizes: "180x180" }],
   },
 };
 
