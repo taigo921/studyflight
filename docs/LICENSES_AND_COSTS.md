@@ -9,14 +9,14 @@
 | 空港データ | OurAirports | パブリックドメイン | 可 | 任意（アプリ内に記載） | 0 |
 | 路線データ | OpenFlights routes.dat（2014年時点） | ODbL 1.0 | 可（帰属表示・派生 DB の同一ライセンス公開） | 必須 | 0 |
 | 地球画像 | NASA Blue Marble NG（GIBS） | NASA 画像（米国政府著作物） | 可 | 謝辞を求められている | 0 |
-| 衛星画像 | Sentinel-2 cloudless 2016（EOX） | CC BY 4.0 | 2016版は CC BY 4.0 と記載。ただし EOX は商用に独自ライセンスを案内 → **要確認** | 必須 | 0（商用ライセンスは見積もり） |
+| 衛星画像 | Sentinel-2 cloudless 2024（EOX） | CC BY-NC-SA 4.0 | **不可**（商用化時は 2016 版 CC BY 4.0・EOX 商用ライセンス・Mapbox へ切替。2016 版も EOX に要確認） | 必須 | 0（商用ライセンスは見積もり） |
 | 地形 | Terrain Tiles（Mapzen / AWS Open Data） | 各ソースの帰属 | 可 | 必須 | 0 |
 | 地図・地名 | OpenFreeMap / OpenMapTiles / OpenStreetMap | ODbL（OSM）他 | 可 | 必須 | 0（寄付制） |
 | 陸地（オフライン） | Natural Earth | パブリックドメイン | 可 | 任意 | 0 |
 | 地図描画 | MapLibre GL JS | BSD-3-Clause | 可 | ライセンス表記 | 0 |
 | 配信 | GitHub Pages | GitHub 規約 | 個人・小規模は可（商用 SaaS の主用途は規約確認） | — | 0 |
 
-使っていないもの: Jonty/airline-route-data（LICENSE なし。統計の参考のみで同梱しない）、Sentinel-2 cloudless 2018〜2024（CC BY-NC-SA、非商用のみ）。
+使っていないもの: Jonty/airline-route-data（LICENSE なし。統計の参考のみで同梱しない）、Sentinel-2 cloudless 2016（CC BY 4.0。商用化時の切替候補として設定済み）。
 
 ## 導入候補（要承認・未契約）
 

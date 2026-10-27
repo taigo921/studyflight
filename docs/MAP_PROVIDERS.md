@@ -7,7 +7,7 @@
 | 用途 | 配信元 | ライセンス / 条件 | 帰属表示 |
 |---|---|---|---|
 | 地球全体（ズーム 0〜約5） | NASA Blue Marble Next Generation（GIBS WMTS, EPSG:3857, z0–8） | NASA の画像（米国政府著作物）。GIBS は利用時の謝辞を求めている | 「ⓘ 出典」に表示 |
-| 衛星写真（ズーム 3.5 以上でクロスフェード） | Sentinel-2 cloudless **2016**（EOX） | CC BY 4.0（EOX の s2maps.eu の記載） | `Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016 & 2017)` |
+| 衛星写真（ズーム 3.5 以上でクロスフェード） | Sentinel-2 cloudless **2024**（EOX） | CC BY-NC-SA 4.0（**非商用のみ**） | `Sentinel-2 cloudless by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)` |
 | 3D 地形 | Terrain Tiles（Mapzen / AWS Open Data, terrarium） | 各データソースの帰属が必要 | 「ⓘ 出典」に表示 |
 | 地名ラベル・標準/ダーク | OpenFreeMap（OpenMapTiles / OpenStreetMap） | ODbL（OSM）・OpenMapTiles の帰属 | 「ⓘ 出典」に表示 |
 | オフライン時 | Natural Earth（同梱） | パブリックドメイン | 「ⓘ 出典」に表示 |
@@ -27,11 +27,12 @@
 | 費用 | 無料（商用ライセンスは別途見積もり） | 無料枠超過で従量課金（料金ページで要確認） |
 | キー管理 | 不要 | 公開トークン（pk.）をクライアントに置く設計。URL 制限必須。**本プロジェクトの方針ではユーザー承認後に導入** |
 
-参考: 2018〜2024 年版の Sentinel-2 cloudless は CC BY-NC-SA 4.0（非商用のみ）。`NEXT_PUBLIC_SATELLITE_PROVIDER=eox-s2cloudless-2024` で切り替えられるが、商用公開では使わないこと。
+参考: 2018〜2024 年版の Sentinel-2 cloudless は CC BY-NC-SA 4.0（非商用のみ）。商用公開では 2024 版を使わないこと。
 
 ### 判断
 
-- **現状（無料の個人公開・ベータ）**: 既定を 2016 版（CC BY 4.0）にする。画像は少し古いが、帰属表示を条件に使える版。
+- **現状（無料・非商用のベータ）**: 既定は 2024 版（CC BY-NC-SA 4.0）。2026-10-28 に一度 2016 版を既定にしたが、iPhone 実機で日本付近に雲の残り（白い塊）が目立ったため 2024 版に戻した。
+- **有料化・広告など商用要素を入れる前に必ず切り替える**: `NEXT_PUBLIC_SATELLITE_PROVIDER=eox-s2cloudless-2016`（画質は落ちる）、EOX の商用ライセンス、または Mapbox Satellite。
 - **商用化前**: EOX に 2016 版の商用利用条件を確認する。必要なら EOX の商用ライセンス、または Mapbox Satellite（承認・トークン管理・費用見積もり後）に切り替える。
 - Blue Marble は低ズームの地球儀用。NASA の謝辞を出典一覧に表示している。
 
@@ -39,7 +40,7 @@
 
 `.env.example` を参照。
 
-- `NEXT_PUBLIC_SATELLITE_PROVIDER` — `eox-s2cloudless-2016`（既定）/ `eox-s2cloudless-2024`
+- `NEXT_PUBLIC_SATELLITE_PROVIDER` — `eox-s2cloudless-2024`（既定・非商用）/ `eox-s2cloudless-2016`（CC BY 4.0）
 - `NEXT_PUBLIC_SATELLITE_TILES` ほか — 任意の XYZ タイル（指定すると独自配信元として扱い、帰属表示も環境変数から）
 - `NEXT_PUBLIC_GLOBE_TILES` — 低ズームの地球画像
 
@@ -52,8 +53,8 @@
 | 品質 | 解像度 | 3D 地形 | カメラ更新 | タイルキャッシュ |
 |---|---|---|---|---|
 | 省電力 | 1倍 | なし | 1秒ごと | 60 |
-| 自動 | 最大2倍（省データ設定・低メモリ端末では省電力） | あり | 0.5秒ごと | 150 |
-| 高画質 | 最大3倍 | あり | 0.25秒ごと | 300 |
+| 自動 | 最大2倍（省データ設定・低メモリ端末では省電力） | あり | 0.5秒ごと | 自動 |
+| 高画質 | 最大3倍 | あり | 0.25秒ごと | 自動 |
 
 画面を離れると地図を破棄し、WebGL コンテキストを明示的に解放する。非表示中はカメラ更新を止める。
 

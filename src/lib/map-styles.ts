@@ -84,7 +84,8 @@ const blueMarbleSource: SourceSpecification = {
   maxzoom: BLUE_MARBLE.maxzoom,
   attribution: BLUE_MARBLE.attribution,
 };
-const blueMarbleLayer: LayerSpecification = { id: "sf-bluemarble", type: "raster", source: "sf-bluemarble", paint: { "raster-fade-duration": 200 } };
+// 拡大時に引き伸ばされた Blue Marble（ぼやけた緑）が見えないよう、ズーム 8 までに限る
+const blueMarbleLayer: LayerSpecification = { id: "sf-bluemarble", type: "raster", source: "sf-bluemarble", maxzoom: 8, paint: { "raster-fade-duration": 200 } };
 
 /** 低ズームは Blue Marble、ズーム 3.5〜5.5 で Sentinel-2 に切り替わる */
 export const SATELLITE_FADE: [number, number] = [3.5, 5.5];

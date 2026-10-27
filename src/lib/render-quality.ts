@@ -9,8 +9,8 @@ export interface RenderSettings {
   /** フライト中にカメラを更新する間隔（ミリ秒） */
   frameIntervalMs: number;
   antialias: boolean;
-  /** 保持するタイル数の上限 */
-  maxTileCacheSize: number;
+  /** 保持するタイル数の上限（null = MapLibre の自動設定） */
+  maxTileCacheSize: number | null;
 }
 
 export interface DeviceHints {
@@ -31,8 +31,8 @@ export function resolveRenderSettings(quality: RenderQuality, hints: DeviceHints
   const constrained = !!hints.saveData || (hints.deviceMemory !== undefined && hints.deviceMemory < 4);
   const effective = quality === "auto" ? (constrained ? "low" : "auto") : quality;
   if (effective === "low") return { pixelRatio: 1, terrain: false, frameIntervalMs: 1000, antialias: false, maxTileCacheSize: 60 };
-  if (effective === "high") return { pixelRatio: Math.min(dpr, 3), terrain: true, frameIntervalMs: 250, antialias: true, maxTileCacheSize: 300 };
-  return { pixelRatio: Math.min(dpr, 2), terrain: true, frameIntervalMs: 500, antialias: false, maxTileCacheSize: 150 };
+  if (effective === "high") return { pixelRatio: Math.min(dpr, 3), terrain: true, frameIntervalMs: 250, antialias: true, maxTileCacheSize: null };
+  return { pixelRatio: Math.min(dpr, 2), terrain: true, frameIntervalMs: 500, antialias: false, maxTileCacheSize: null };
 }
 
 export function deviceHints(): DeviceHints {

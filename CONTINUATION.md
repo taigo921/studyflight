@@ -87,7 +87,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 
 1. **公開済み**: https://taigo921.github.io/studyflight/ （LP: /studyflight/lp/、main への push で自動デプロイ）。この作業環境からは github.io・地図配信元に接続できないため、表示確認はユーザー端末で行う
 2. **要ユーザー承認（外部サービス）**: 先行登録・分析の送信先、時刻表 API、高解像度衛星画像、Supabase 同期、課金（Stripe / Apple）。docs/LICENSES_AND_COSTS.md
-3. 商用化する場合は EOX に Sentinel-2 cloudless 2016 の商用条件を確認（docs/MAP_PROVIDERS.md）
+3. 衛星画像の既定は 2024 版（CC BY-NC-SA 4.0、非商用のみ）。**有料化・広告など商用要素を入れる前に** 2016 版・EOX 商用ライセンス・Mapbox のいずれかへ切替（docs/MAP_PROVIDERS.md）
 4. 既存画面の文字列を i18n 辞書（src/i18n/ja.ts, en.ts）へ移行。現在の英語対応: ナビ・共有・LP・プライバシー・同意・設定の言語欄
 5. iPhone 実機（Safari / ホーム画面 PWA）での検証: safe area、キーボード、バックグラウンド復帰、Wake Lock、Web Share（画像）、衛星画像
 6. VoiceOver・Lighthouse 計測、タイムゾーン変更の E2E
@@ -107,6 +107,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 | 2026-10-28 | GitHub に push、Pages 有効化、Actions でデプロイ | CI: lint/型/テスト/ビルド/デプロイ 成功 | 実機確認待ち |
 | 2026-10-28 | 統合指示書 Phase6: 利用権判定（サーバー発行前提）、紹介・ソーシャルの型、docs/ARCHITECTURE.md・LICENSES_AND_COSTS.md | lint/型/unit/build/E2E 成功 | 課金・同期は未実装（要承認） |
 | 2026-10-28 | 統合指示書 Phase5: 共有画像・UTM・分析イベント・同意・プライバシー・LP/先行登録・ja/en 土台 | lint/型/unit 120/build/E2E 12+3D 1 成功 | 送信先は要承認。既存画面の英語化は未完 |
+| 2026-10-28 | 実機フィードバック: 2016 版の雲の残り・拡大時の Blue Marble のぼやけ・下部文字の読みにくさ → 既定を 2024 版に戻す、Blue Marble は z8 まで、タイルキャッシュ自動、下部グラデーション強化 | lint/型/unit/build/E2E | 配信元の応答速度は実機で要確認 |
 | 2026-10-28 | 統合指示書 Phase3: Blue Marble 地球儀、衛星画像 2016 版（CC BY 4.0）既定、配信元比較 docs/MAP_PROVIDERS.md、描画品質設定、ETA・現在位置 | lint/型/unit 104/build/E2E 9+3D 1 成功 | 実機での画像表示確認、商用時の EOX 確認 |
 | 2026-10-28 | 統合指示書 Phase2: 実在路線・推定予定時間・区間/旅行・分割飛行と再開・候補検索UI・設定 | lint/型/unit 95/build/E2E 9+3D 1 成功 | 時刻表ベースの予定時間は有料API要承認 |
 | 2026-10-28 | 旅の仕組み（時間→行き先候補、現在地、軌跡、ダイバート） | unit 80 / E2E 9 成功 | 実機での操作感の確認待ち |

@@ -6,7 +6,7 @@
 - ログイン不要。データは端末内の IndexedDB にのみ保存（JSON バックアップ / CSV 書き出しあり）
 - タイマーは保存した時刻から再計算するため、バックグラウンド・リロード・タブを閉じた後でも破綻しない
 - 3D 地球儀（MapLibre GL globe）が使えない端末では SVG の 2D 航路図に自動で切り替え
-- 外部 API キー・有料サービス不要（地球 = NASA Blue Marble、衛星画像 = Sentinel-2 cloudless 2016、地形 = Terrain Tiles、地図 = OpenFreeMap、オフライン用に Natural Earth を同梱）
+- 外部 API キー・有料サービス不要（地球 = NASA Blue Marble、衛星画像 = Sentinel-2 cloudless 2024、地形 = Terrain Tiles、地図 = OpenFreeMap、オフライン用に Natural Earth を同梱）
 
 ## 必要環境
 
@@ -85,7 +85,7 @@ node scripts/serve.mjs out 3000 /studyflight   # http://127.0.0.1:3000/studyflig
 ## ライセンス表記
 
 - 地球（低ズーム）: NASA Blue Marble Next Generation（NASA EOSDIS GIBS）
-- 衛星画像: Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016 & 2017), CC BY 4.0。比較・商用時の注意は docs/MAP_PROVIDERS.md
+- 衛星画像: Sentinel-2 cloudless by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0（非商用のみ）。商用化時の切替は docs/MAP_PROVIDERS.md
 - 標高: Terrain Tiles (Mapzen, AWS Open Data)
 - 地図・地名: OpenFreeMap / © OpenMapTiles / © OpenStreetMap contributors
 - 空港データ: OurAirports — Public Domain

@@ -219,7 +219,7 @@ export function SettingsScreen() {
           <p>StudyFlight は学習時間を仮想フライトとして記録するアプリです。航路・機体・飛行時間は演出であり、実在の航空便とは関係ありません。</p>
           <p>タイマーは保存した時刻から計算するため、画面を閉じても進みます。実際に学習していたかどうかは計測しません。また、他のアプリの使用を制限する機能はありません。</p>
           <p>
-            空港データ: OurAirports（パブリックドメイン） / 路線データ: OpenFlights（ODbL） / 地球: NASA Blue Marble（NASA GIBS） / 衛星画像: Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH（Contains modified Copernicus Sentinel data 2016 &amp; 2017, CC BY 4.0） / 標高: Terrain Tiles（Mapzen, AWS
+            空港データ: OurAirports（パブリックドメイン） / 路線データ: OpenFlights（ODbL） / 地球: NASA Blue Marble（NASA GIBS） / 衛星画像: Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH（Contains modified Copernicus Sentinel data 2024, CC BY-NC-SA 4.0） / 標高: Terrain Tiles（Mapzen, AWS
             Open Data） / 地図・地名: OpenFreeMap, © OpenMapTiles, © OpenStreetMap contributors / 地図データ: Natural Earth（パブリックドメイン） / 地図描画: MapLibre GL JS（BSD-3-Clause）
           </p>
           <p>サウンドは端末内で合成しています。ロゴ・アイコンは本アプリのオリジナルです。</p>

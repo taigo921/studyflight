@@ -32,7 +32,7 @@ export const BLUE_MARBLE: ImageryProvider = {
 };
 
 const PROVIDERS: Record<string, ImageryProvider> = {
-  // 既定: Sentinel-2 cloudless 2016（CC BY 4.0）。帰属表示を条件に利用できる版
+  // Sentinel-2 cloudless 2016（CC BY 4.0）。古い合成で日本付近は雲の残りが目立つ。商用公開時の候補
   "eox-s2cloudless-2016": {
     id: "eox-s2cloudless-2016",
     label: "Sentinel-2 cloudless 2016",
@@ -45,7 +45,7 @@ const PROVIDERS: Record<string, ImageryProvider> = {
     href: "https://s2maps.eu",
     license: "CC BY 4.0",
   },
-  // 新しい画像だが CC BY-NC-SA 4.0（非商用のみ）。商用には EOX の有償ライセンスが必要
+  // 既定: 雲の残りが少なく画質が良い。CC BY-NC-SA 4.0（非商用のみ）。商用には EOX の有償ライセンスか 2016 版への切替が必要
   "eox-s2cloudless-2024": {
     id: "eox-s2cloudless-2024",
     label: "Sentinel-2 cloudless 2024",
@@ -60,7 +60,7 @@ const PROVIDERS: Record<string, ImageryProvider> = {
   },
 };
 
-export const DEFAULT_PROVIDER_ID = "eox-s2cloudless-2016";
+export const DEFAULT_PROVIDER_ID = "eox-s2cloudless-2024";
 
 /** 現在の衛星画像の配信元。NEXT_PUBLIC_SATELLITE_TILES を指定した場合は独自の配信元として扱う。 */
 export function satelliteProvider(env: Record<string, string | undefined> = readEnv()): ImageryProvider {

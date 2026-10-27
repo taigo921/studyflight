@@ -5,15 +5,17 @@ import { nearest } from "@/domain/geo";
 import { formatLatLng } from "@/domain/format";
 
 describe("satelliteProvider", () => {
-  it("既定は帰属表示つきで利用できる 2016 版", () => {
+  it("既定は雲の少ない 2024 版で、非商用ライセンスと明示される", () => {
     const p = satelliteProvider({});
     expect(p.id).toBe(DEFAULT_PROVIDER_ID);
-    expect(p.license).toBe("CC BY 4.0");
-    expect(p.tiles).toContain("s2cloudless_3857");
+    expect(p.tiles).toContain("s2cloudless-2024_3857");
+    expect(p.license).toMatch(/NC/);
     expect(p.attribution).toContain("EOX");
   });
-  it("2024 版は非商用ライセンスと明示される", () => {
-    expect(satelliteProvider({ NEXT_PUBLIC_SATELLITE_PROVIDER: "eox-s2cloudless-2024" }).license).toMatch(/NC/);
+  it("商用向けに 2016 版（CC BY 4.0）へ切り替えられる", () => {
+    const p = satelliteProvider({ NEXT_PUBLIC_SATELLITE_PROVIDER: "eox-s2cloudless-2016" });
+    expect(p.license).toBe("CC BY 4.0");
+    expect(p.tiles).toContain("s2cloudless_3857");
   });
   it("未知の ID は既定に戻り、タイル URL 指定は独自配信元になる", () => {
     expect(satelliteProvider({ NEXT_PUBLIC_SATELLITE_PROVIDER: "nope" }).id).toBe(DEFAULT_PROVIDER_ID);

@@ -234,7 +234,7 @@ export function FlightScreen() {
       )}
       {prefs.flightCamera === "window" && <WindowFrame />}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[6] h-36 bg-gradient-to-b from-night/80 to-transparent" aria-hidden />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-64 bg-gradient-to-t from-night/90 via-night/50 to-transparent" aria-hidden />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[30rem] bg-gradient-to-t from-night/95 via-night/80 to-transparent short:h-48" aria-hidden />
 
       {/* 上部: 閉じる・便情報 */}
       <header className="px-safe pt-safe absolute inset-x-0 top-0 z-10">
