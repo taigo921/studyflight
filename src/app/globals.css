@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+/* デザイントークン（STYLE_GUIDE §1）。ダークネイビー固定のテーマ。 */
+@theme {
+  --color-night: #07101f;
+  --color-surface: #111d33;
+  --color-elevated: #182741;
+  --color-line: #2b3b55;
+  --color-ink: #f6f8ff;
+  --color-mute: #a4b3cc;
+  --color-sky: #66b3ff;
+  --color-gold: #ebc77b;
+  --color-ok: #74d6b2;
+  --color-danger: #ff8793;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Menlo", "Roboto Mono", monospace;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --nav-height: 64px;
+}
+
+html,
+body {
+  background: var(--color-night);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100dvh;
+  font-size: 15px;
+  line-height: 1.6;
+  font-feature-settings: "palt" 1;
+}
+
+/* 控えめな星空。画像を使わずグラデーションのみで描く */
+.starfield {
+  background-color: var(--color-night);
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(246, 248, 255, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 72% 9%, rgba(246, 248, 255, 0.4), transparent 60%),
+    radial-gradient(1.5px 1.5px at 38% 32%, rgba(235, 199, 123, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 86% 41%, rgba(246, 248, 255, 0.35), transparent 60%),
+    radial-gradient(1px 1px at 22% 63%, rgba(246, 248, 255, 0.3), transparent 60%),
+    radial-gradient(1px 1px at 58% 76%, rgba(102, 179, 255, 0.4), transparent 60%),
+    radial-gradient(1px 1px at 93% 88%, rgba(246, 248, 255, 0.3), transparent 60%),
+    radial-gradient(120% 60% at 50% -10%, rgba(102, 179, 255, 0.12), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* 画面下部に覗く地球の弧（ホーム背景） */
+.earth-arc {
+  position: absolute;
+  left: 50%;
+  bottom: -120vw;
+  width: 220vw;
+  max-width: 1600px;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: radial-gradient(circle at 50% 0%, rgba(102, 179, 255, 0.18), rgba(17, 29, 51, 0.0) 45%);
+  box-shadow: 0 -1px 0 rgba(102, 179, 255, 0.35), 0 -30px 80px rgba(102, 179, 255, 0.12);
+  pointer-events: none;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.pt-safe {
+  padding-top: max(var(--safe-top), 12px);
+}
+.pb-safe {
+  padding-bottom: max(var(--safe-bottom), 12px);
+}
+.pb-nav {
+  padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 24px);
+}
+.px-safe {
+  padding-left: max(var(--safe-left), 16px);
+  padding-right: max(var(--safe-right), 16px);
+}
+
+/* 搭乗券のミシン目 */
+.perforation {
+  background-image: radial-gradient(circle, var(--color-night) 5px, transparent 5.5px);
+  background-size: 16px 12px;
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-sky);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-up {
+  animation: fade-up 260ms var(--ease-out-soft) both;
+}
+
+@keyframes landing {
+  0% {
+    transform: translate(-60px, -46px) rotate(12deg) scale(0.9);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+.animate-landing {
+  animation: landing 1500ms var(--ease-out-soft) both;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}
+
+/* OS の「視差効果を減らす」、またはアプリ設定の動き軽減 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}
+
+/* MapLibre の帰属表示をテーマに合わせる */
+.maplibregl-ctrl-attrib {
+  background: rgba(7, 16, 31, 0.6) !important;
+  color: var(--color-mute) !important;
+  font-size: 11px !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--color-mute) !important;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+/* iOS で入力時にズームされないよう 16px 以上 */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
