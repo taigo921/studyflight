@@ -106,6 +106,13 @@
 - [ ] 既存画面の文字列を i18n 辞書へ移行（ホーム・搭乗・フライト・ログ・分析など）
 - [ ] 先行登録・分析の送信先（外部サービス契約が必要、要承認）
 
+## Phase 3.10 — 統合開発指示書 Phase6（設計）
+
+- [x] 利用権の判定（`domain/entitlements.ts`）: サーバー発行・期限・猶予・オフライン信用期間。課金は未実装
+- [x] 紹介・ソーシャルのデータ型（`domain/social.ts`）
+- [x] docs/ARCHITECTURE.md、docs/LICENSES_AND_COSTS.md
+- [ ] Stripe / Apple App 内課金・サーバー（要承認）
+
 ## Phase 4 — PWA・公開品質
 
 - [x] Manifest、アプリアイコン、ホーム画面追加案内

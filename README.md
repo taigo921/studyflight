@@ -92,3 +92,10 @@ node scripts/serve.mjs out 3000 /studyflight   # http://127.0.0.1:3000/studyflig
 - 地図データ: Natural Earth — Public Domain
 - 地図描画: MapLibre GL JS — BSD-3-Clause
 - ロゴ・アイコン・UI はオリジナル。サウンドは Web Audio で端末内合成
+
+## ドキュメント
+
+- docs/ARCHITECTURE.md — 構成・タイマーの正しさ・外部連携と課金の設計
+- docs/MAP_PROVIDERS.md — 地図・衛星画像の配信元比較
+- docs/ANALYTICS.md — 分析イベントと指標
+- docs/LICENSES_AND_COSTS.md — ライセンスと費用
