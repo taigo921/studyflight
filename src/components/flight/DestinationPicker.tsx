@@ -2,13 +2,11 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { IconSearch } from "@/components/icons/Icons";
-import { Segmented } from "@/components/ui/Segmented";
 import { airportCodeOf, airportDisplayName, normalizeQuery } from "@/domain/airport-search";
 import { countryName, formatKm } from "@/domain/format";
 import { destinationCandidates, type Candidate } from "@/domain/route-planner";
 import type { Airport } from "@/domain/types";
 
-type Region = "all" | "domestic" | "intl";
 const PAGE = 12;
 
 /** 現在地から、学習時間で飛べる空港を候補として並べる。 */
@@ -27,17 +25,12 @@ export function DestinationPicker({
   value: Airport | null;
   onChange: (a: Airport) => void;
 }) {
-  const [region, setRegion] = useState<Region>("all");
   const [query, setQuery] = useState("");
   const [shown, setShown] = useState(PAGE);
   const q = normalizeQuery(useDeferredValue(query));
 
   const candidates = useMemo(() => destinationCandidates(origin, minutes, airports), [origin, minutes, airports]);
-  const hasDomestic = candidates.some((c) => c.domestic);
-  const hasIntl = candidates.some((c) => !c.domestic);
   const filtered = candidates.filter((c) => {
-    if (region === "domestic" && !c.domestic) return false;
-    if (region === "intl" && c.domestic) return false;
     if (!q) return true;
     const a = c.airport;
     return normalizeQuery([a.iata, a.icao, a.name, a.nameJa, a.municipality, a.keywords, countryName(a.countryCode)].filter(Boolean).join(" ")).includes(q);
@@ -45,21 +38,6 @@ export function DestinationPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      {hasDomestic && hasIntl && (
-        <Segmented<Region>
-          label="地域"
-          value={region}
-          onChange={(r) => {
-            setRegion(r);
-            setShown(PAGE);
-          }}
-          options={[
-            { value: "all", label: "すべて" },
-            { value: "domestic", label: "国内" },
-            { value: "intl", label: "海外" },
-          ]}
-        />
-      )}
       {candidates.length > 6 && (
         <label className="flex min-h-11 items-center gap-2 rounded-2xl border border-line bg-night/60 px-3 focus-within:border-sky">
           <IconSearch size={18} className="text-mute" />
