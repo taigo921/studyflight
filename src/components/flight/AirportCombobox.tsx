@@ -85,8 +85,8 @@ export function AirportCombobox({
         </span>
         <IconSearch className="shrink-0 text-mute" size={20} />
       </button>
-      <Sheet open={open} onClose={() => setOpen(false)} title={`${label}を選択`}>
-        <label className="sticky top-0 z-10 mb-3 flex min-h-12 items-center gap-2 rounded-2xl border border-line bg-night px-3 focus-within:border-sky">
+      <Sheet open={open} onClose={() => setOpen(false)} title={`${label}を選択`} tall>
+        <label className="sticky top-0 z-10 mb-3 flex min-h-12 items-center gap-2 rounded-2xl border border-line bg-night px-3 shadow-[0_-12px_0_var(--color-surface)] focus-within:border-sky">
           <IconSearch size={20} className="text-mute" />
           <span className="sr-only">空港を検索</span>
           <input
@@ -94,7 +94,7 @@ export function AirportCombobox({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="HND、成田、London など"
-            className="min-h-11 flex-1 bg-transparent text-ink outline-none placeholder:text-mute/70"
+            className="min-h-11 flex-1 bg-transparent text-ink outline-none placeholder:text-mute/70 focus-visible:outline-none"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="characters"

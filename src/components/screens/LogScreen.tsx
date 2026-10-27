@@ -81,7 +81,7 @@ export function LogScreen() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="メモ・タスク・空港で検索"
               aria-label="ログを検索"
-              className="min-h-10 min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-mute/60"
+              className="min-h-10 min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-mute/60 focus-visible:outline-none"
             />
           </label>
           <select

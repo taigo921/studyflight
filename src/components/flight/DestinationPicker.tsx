@@ -50,7 +50,7 @@ export function DestinationPicker({
             }}
             placeholder="候補を絞り込む（都市名・国・コード）"
             aria-label="行き先の候補を絞り込む"
-            className="min-h-10 min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-mute/60"
+            className="min-h-10 min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-mute/60 focus-visible:outline-none"
           />
         </label>
       )}
