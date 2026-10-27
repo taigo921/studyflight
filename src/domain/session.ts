@@ -171,6 +171,8 @@ function finalize(
         completionType: null,
         abandonmentReason: outcome.reason,
         earnedSkyPoints: 0,
+        // 欠航は区間を進めない（学習実績として加算しない）
+        ...(session.legScheduledSeconds ? { distanceKm: 0, reachedDestination: false } : {}),
         clockAnomaly: anomaly,
         updatedAt: now,
       },
@@ -189,9 +191,27 @@ function finalize(
     completionType: outcome.type,
     clockAnomaly: anomaly,
     updatedAt: now,
+    ...legOutcome(session, actual),
   };
   completed.earnedSkyPoints = computeSkyPoints(completed);
   return { session: completed, segments };
+}
+
+/** 区間（分割フライト）での進み具合: このセッションで進んだ距離と、目的地に着いたか。 */
+export function legOutcome(session: FlightSession, focusSeconds: number): Pick<FlightSession, "distanceKm" | "reachedDestination"> | Record<string, never> {
+  const sched = session.legScheduledSeconds;
+  if (!sched) return {};
+  const start = session.legStartSeconds ?? 0;
+  const end = Math.min(sched, start + focusSeconds);
+  const route = session.routeDistanceKm ?? session.distanceKm;
+  return { distanceKm: Math.round(((route * (end - start)) / sched) * 10) / 10, reachedDestination: end >= sched - 0.5 };
+}
+
+/** 区間全体での進捗（0..1）。旧形式の記録はセッション自身の進捗と同じ。 */
+export function legProgressOf(session: FlightSession, nowMs: number): number {
+  const sched = session.legScheduledSeconds;
+  if (!sched) return progressOf(session, nowMs);
+  return Math.min(1, ((session.legStartSeconds ?? 0) + elapsedSeconds(session, nowMs)) / sched);
 }
 
 /**

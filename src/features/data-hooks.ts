@@ -5,7 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo } from "react";
 import { getDb } from "@/data/db";
 import { defaultGoals, defaultPreferences } from "@/data/settings";
-import type { FlightSession, FocusSegment, StudyTask, Subject } from "@/domain/types";
+import type { FlightLeg, FlightSession, FocusSegment, StudyTask, Subject, Trip } from "@/domain/types";
 
 export function usePreferences() {
   // undefined = 読み込み中、null = 未作成（初回起動）
@@ -56,4 +56,17 @@ export function useSessions(): FlightSession[] | undefined {
 
 export function useSegments(): FocusSegment[] | undefined {
   return useLiveQuery(() => getDb().focusSegments.toArray(), []);
+}
+
+export function useLegs(): FlightLeg[] | undefined {
+  return useLiveQuery(() => getDb().legs.toArray(), []);
+}
+
+export function useTrips(): Trip[] | undefined {
+  return useLiveQuery(async () => (await getDb().trips.toArray()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)), []);
+}
+
+/** 進行中の旅行計画（無ければ null）。 */
+export function useActiveTrip(): Trip | null | undefined {
+  return useLiveQuery(async () => (await getDb().trips.where("status").equals("active").first()) ?? null, []);
 }

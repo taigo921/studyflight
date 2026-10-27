@@ -73,9 +73,19 @@ export interface FlightSession {
   actualFocusSeconds?: number | null;
   completionType?: CompletionType | null;
   abandonmentReason?: string | null;
-  /** 早期着陸でダイバートした場合に実際に着陸した空港（null/未設定なら目的地に到着） */
+  /** 旧仕様（ダイバート）で記録された着陸空港。新しい記録では使わない */
   landedAirportId?: string | null;
   landedCode?: string | null;
+  /** このセッションで飛んだ区間（未設定は旧形式の記録） */
+  legId?: string | null;
+  /** セッション開始時点の区間の飛行済み秒数 */
+  legStartSeconds?: number;
+  /** 区間の推定予定飛行時間（秒） */
+  legScheduledSeconds?: number;
+  /** 区間の全距離（km）。distanceKm はこのセッションで実際に進んだ距離 */
+  routeDistanceKm?: number;
+  /** このセッションの終了時に区間の目的地へ到着したか（false = 上空で停止） */
+  reachedDestination?: boolean;
   distanceKm: number;
   earnedSkyPoints: number;
   note?: string;
@@ -83,6 +93,41 @@ export interface FlightSession {
   clockAnomaly?: boolean;
   createdAt: ISODate;
   updatedAt: ISODate;
+}
+
+/** 旅行計画（出発空港から最終目的地まで、複数区間を経由する） */
+export interface Trip {
+  id: UUID;
+  originAirportId: string;
+  finalDestinationId: string | null;
+  status: "active" | "completed" | "abandoned";
+  createdAt: ISODate;
+  updatedAt: ISODate;
+  completedAt?: ISODate | null;
+}
+
+/**
+ * 区間（1本のフライト）。予定飛行時間が学習時間より長ければ、複数のセッションに分けて飛ぶ。
+ * flownSeconds は学習で実際に進んだ秒数の合計（学習していない時間は加算しない）。
+ */
+export interface FlightLeg {
+  id: UUID;
+  tripId: UUID | null;
+  originAirportId: string;
+  destinationAirportId: string;
+  originCode: string;
+  destinationCode: string;
+  /** route = 路線データ（OpenFlights）に直行便の就航実績あり / estimated = データなし・推定 */
+  routeSource: "route" | "estimated";
+  carriers: string[];
+  distanceKm: number;
+  /** 推定予定飛行時間（秒） */
+  scheduledSeconds: number;
+  flownSeconds: number;
+  status: "in_progress" | "arrived" | "cancelled";
+  createdAt: ISODate;
+  updatedAt: ISODate;
+  arrivedAt?: ISODate | null;
 }
 
 export interface FocusSegment {

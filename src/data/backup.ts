@@ -2,7 +2,7 @@
 // 実行前にプレビュー（件数・ID 衝突）を返す。PRODUCT_SPEC §10。
 
 import { z } from "zod";
-import type { FlightSession, FocusSegment, StudyTask, Subject } from "@/domain/types";
+import type { FlightLeg, FlightSession, FocusSegment, StudyTask, Subject, Trip } from "@/domain/types";
 import { getDb, SCHEMA_VERSION } from "./db";
 import { defaultGoals, defaultPreferences } from "./settings";
 
@@ -54,6 +54,11 @@ const SessionSchema = z.object({
   abandonmentReason: z.string().nullable().optional(),
   landedAirportId: z.string().nullable().optional(),
   landedCode: z.string().nullable().optional(),
+  legId: z.string().nullable().optional(),
+  legStartSeconds: z.number().min(0).optional(),
+  legScheduledSeconds: z.number().positive().optional(),
+  routeDistanceKm: z.number().min(0).optional(),
+  reachedDestination: z.boolean().optional(),
   distanceKm: z.number().min(0),
   earnedSkyPoints: z.number().int().min(0),
   note: z.string().max(5000).optional(),
@@ -68,6 +73,34 @@ const SegmentSchema = z.object({
   startedAt: iso,
   endedAt: iso.nullable(),
   durationSeconds: z.number().min(0),
+});
+
+const LegSchema = z.object({
+  id: z.string().min(1),
+  tripId: z.string().nullable(),
+  originAirportId: z.string().min(1),
+  destinationAirportId: z.string().min(1),
+  originCode: z.string(),
+  destinationCode: z.string(),
+  routeSource: z.enum(["route", "estimated"]),
+  carriers: z.array(z.string()),
+  distanceKm: z.number().min(0),
+  scheduledSeconds: z.number().positive(),
+  flownSeconds: z.number().min(0),
+  status: z.enum(["in_progress", "arrived", "cancelled"]),
+  createdAt: iso,
+  updatedAt: iso,
+  arrivedAt: isoNullable,
+});
+
+const TripSchema = z.object({
+  id: z.string().min(1),
+  originAirportId: z.string().min(1),
+  finalDestinationId: z.string().nullable(),
+  status: z.enum(["active", "completed", "abandoned"]),
+  createdAt: iso,
+  updatedAt: iso,
+  completedAt: isoNullable,
 });
 
 const GoalsSchema = z.object({
@@ -101,6 +134,8 @@ export const BackupSchema = z.object({
     tasks: z.array(TaskSchema).default([]),
     sessions: z.array(SessionSchema),
     focusSegments: z.array(SegmentSchema).default([]),
+    legs: z.array(LegSchema).default([]),
+    trips: z.array(TripSchema).default([]),
     goals: GoalsSchema.optional(),
     preferences: PreferencesSchema.optional(),
   }),
@@ -110,13 +145,15 @@ export type Backup = z.infer<typeof BackupSchema>;
 
 export async function exportBackup(): Promise<Backup> {
   const db = getDb();
-  const [subjects, tasks, sessions, focusSegments, goals, preferences] = await Promise.all([
+  const [subjects, tasks, sessions, focusSegments, goals, preferences, legs, trips] = await Promise.all([
     db.subjects.toArray(),
     db.tasks.toArray(),
     db.sessions.toArray(),
     db.focusSegments.toArray(),
     db.goals.get("default"),
     db.preferences.get("default"),
+    db.legs.toArray(),
+    db.trips.toArray(),
   ]);
   const strip = <T extends { id?: string; updatedAt?: string }>(row: T | undefined) => {
     if (!row) return undefined;
@@ -133,6 +170,8 @@ export async function exportBackup(): Promise<Backup> {
       tasks,
       sessions: sessions.map((s) => ({ ...s })),
       focusSegments,
+      legs,
+      trips,
       goals: strip(goals) as Backup["data"]["goals"],
       preferences: strip(preferences) as Backup["data"]["preferences"],
     },
@@ -207,9 +246,9 @@ export async function previewImport(text: string): Promise<ImportPreview> {
  */
 export async function applyImport(backup: Backup, mode: ImportMode): Promise<void> {
   const db = getDb();
-  await db.transaction("rw", [db.subjects, db.tasks, db.sessions, db.focusSegments, db.goals, db.preferences], async () => {
+  await db.transaction("rw", [db.subjects, db.tasks, db.sessions, db.focusSegments, db.goals, db.preferences, db.legs, db.trips], async () => {
     if (mode === "replace") {
-      await Promise.all([db.subjects.clear(), db.tasks.clear(), db.sessions.clear(), db.focusSegments.clear()]);
+      await Promise.all([db.subjects.clear(), db.tasks.clear(), db.sessions.clear(), db.focusSegments.clear(), db.legs.clear(), db.trips.clear()]);
     }
     const mergeRows = async <T extends { id: string; updatedAt: string }>(table: { get(id: string): Promise<T | undefined>; put(row: T): Promise<unknown> }, rows: T[]) => {
       for (const row of rows) {
@@ -219,6 +258,13 @@ export async function applyImport(backup: Backup, mode: ImportMode): Promise<voi
     };
     await mergeRows(db.subjects, backup.data.subjects as Subject[]);
     await mergeRows(db.tasks, backup.data.tasks as StudyTask[]);
+    await mergeRows(db.trips, backup.data.trips as Trip[]);
+    // 進行中の区間は端末側に別の進行中の区間があれば取り込まない（同時に飛べるのは1区間）
+    const localLeg = await db.legs.where("status").equals("in_progress").first();
+    await mergeRows(
+      db.legs,
+      (backup.data.legs as FlightLeg[]).filter((l) => !(l.status === "in_progress" && localLeg && localLeg.id !== l.id)),
+    );
 
     const localOpen = await db.sessions.where("status").anyOf("active", "paused").first();
     const sessions = (backup.data.sessions as FlightSession[]).filter((s) => {
@@ -242,8 +288,8 @@ export async function applyImport(backup: Backup, mode: ImportMode): Promise<voi
 
 export async function wipeAllData(): Promise<void> {
   const db = getDb();
-  await db.transaction("rw", [db.subjects, db.tasks, db.sessions, db.focusSegments, db.goals, db.preferences], async () => {
-    await Promise.all([db.subjects.clear(), db.tasks.clear(), db.sessions.clear(), db.focusSegments.clear(), db.goals.clear(), db.preferences.clear()]);
+  await db.transaction("rw", [db.subjects, db.tasks, db.sessions, db.focusSegments, db.goals, db.preferences, db.legs, db.trips], async () => {
+    await Promise.all([db.subjects.clear(), db.tasks.clear(), db.sessions.clear(), db.focusSegments.clear(), db.goals.clear(), db.preferences.clear(), db.legs.clear(), db.trips.clear()]);
   });
 }
 

@@ -35,12 +35,13 @@ export function PassportScreen() {
     for (const s of stats.sessions) {
       if (s.status !== "completed") continue;
       const to = arrivalAirportId(s);
+      if (!to) continue; // 上空で止まった回は航路ログに含めない
       const key = `${s.originAirportId}>${to}`;
       const o = byId.get(s.originAirportId);
       const d = byId.get(to);
       const cur = map.get(key);
       if (cur) cur.count++;
-      else map.set(key, { key, label: `${s.originCode} → ${arrivalCode(s)}`, count: 1, km: s.distanceKm, a: o ? [o.lng, o.lat] : null, b: d ? [d.lng, d.lat] : null });
+      else map.set(key, { key, label: `${s.originCode} → ${arrivalCode(s)}`, count: 1, km: s.routeDistanceKm ?? s.distanceKm, a: o ? [o.lng, o.lat] : null, b: d ? [d.lng, d.lat] : null });
     }
     return [...map.values()].sort((x, y) => y.count - x.count);
   }, [stats, byId]);

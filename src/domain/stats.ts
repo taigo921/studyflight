@@ -183,16 +183,21 @@ export function summarize(sessions: FlightSession[]): TotalsSummary {
   };
 }
 
-/** 完了フライトで訪れた空港（出発地・到着地）と、その初訪問日時。 */
+/**
+ * 完了フライトで訪れた空港と初訪問日時。出発空港は初めて飛び立ったときに記録し、
+ * 到着空港は実際に到着したとき（上空で止まった回は含めない）に訪問回数を数える。
+ */
 export function visitedAirports(sessions: FlightSession[]): Map<string, { firstVisitedAt: string; visits: number }> {
   const map = new Map<string, { firstVisitedAt: string; visits: number }>();
   const done = sessions.filter((s) => s.status === "completed").sort((a, b) => (a.completedAt ?? "").localeCompare(b.completedAt ?? ""));
   for (const s of done) {
-    for (const id of [s.originAirportId, arrivalAirportId(s)]) {
-      const cur = map.get(id);
-      if (cur) cur.visits++;
-      else map.set(id, { firstVisitedAt: s.completedAt ?? s.updatedAt, visits: 1 });
-    }
+    const at = s.completedAt ?? s.updatedAt;
+    if (!map.has(s.originAirportId)) map.set(s.originAirportId, { firstVisitedAt: at, visits: 1 });
+    const arrived = arrivalAirportId(s);
+    if (!arrived) continue;
+    const cur = map.get(arrived);
+    if (cur) cur.visits++;
+    else map.set(arrived, { firstVisitedAt: at, visits: 1 });
   }
   return map;
 }
