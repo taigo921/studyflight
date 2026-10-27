@@ -64,6 +64,25 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 20. **WebGL 判定は1回だけ**（以前は描画のたびにコンテキストを作り、上限超過で地図のコンテキストが破棄される不具合があった）。
 21. **E2E の構成**: 機能テストは WebGL 無効（2D）で実行、3D は「地球」スタイルでのスモークテスト（retries 2）。CI に GPU がなく SwiftShader の CPU 描画が重いため。workers は 1。
 
+## 進行中: 統合開発指示書（2026-10-28 受領）への対応
+
+ユーザー指示: 実装済みの部分は指示書に従わなくてよい。未実装の機能のみ指示書に従う。コンテキストがリセットされても自動で続行する。
+
+### 実施順（指示書の Phase 順を維持）
+1. [ ] Phase2-a 実在路線データ: OpenFlights routes.dat（ODbL, 2014年時点, 予定時間なし）→ `scripts/build-routes.mjs` → `public/data/routes.json`。予定飛行時間は推定（距離帯中央値の折れ線モデル、`domain/flight-time.ts`）。UI では「就航実績あり（OpenFlights 2014）」と「推定（路線データなし）」を必ず区別。
+   - Jonty/airline-route-data（予定時間付き・毎週更新）は LICENSE がないため**組み込まない**。推定式の係数算出の統計にのみ参照（データは配布しない）。
+   - 推定式: 距離帯中央値 (0,20) (190,50) (453,75) (802,103) (1423,150) (2668,245) (5455,445) (9309,715) を線形補間、5分単位に丸め。
+2. [ ] Phase2-b 区間(Leg)/旅行(Trip): 区間の予定時間 > 学習時間なら分割して複数回で飛ぶ。早期終了は上空で停止し次回同じ地点から再開（**以前のダイバート仕様は廃止**）。区間は sessions と同一トランザクションで更新。
+3. [ ] Phase2-c 候補検索: 学習時間 ± 許容幅（初期 ±10分、設定可）、分割便、推定候補、最終目的地への進捗、Dijkstra による経由ルート提案、到達不可時の説明と提案。
+4. [ ] Phase3: NASA Blue Marble（GIBS WMTS, z0-8）を低ズームの地球儀に、高ズームで Sentinel-2 に切替。EOX 2016 版（CC BY 4.0 とされる）と Mapbox Satellite の比較を docs/MAP_PROVIDERS.md に。描画品質設定、到着予定時刻・現在位置表示。
+5. [ ] Phase5: FlightLog 共有画像（Canvas, 1080x1920/1080x1350/1200x675, Web Share）、UTM 記録、分析イベント基盤（送信先未接続）、同意管理・プライバシーポリシー、先行登録 LP（送信先は環境変数。未設定なら受付停止）、i18n 基盤（ja/en）。
+6. [ ] Phase6: entitlements（課金状態はサーバー判定前提）、紹介・ソーシャルのデータ型、docs/ARCHITECTURE.md、ライセンス・コスト表。
+
+### 外部サービスが必要なもの（要ユーザー承認・未契約）
+- 正確な予定飛行時間（時刻表）: OAG / Cirium / FlightAware AeroAPI 等の有料 API + サーバー（APIキーをクライアントに置かない）
+- 先行登録の保存先・分析の送信先: Supabase / PostHog / Plausible 等
+- Mapbox Satellite（APIキー・従量課金）
+
 ## 未完了・次にやること
 
 1. **公開済み**: https://taigo921.github.io/studyflight/ （GitHub: taigo921/studyflight、main への push で自動デプロイ）。この作業環境からは github.io に接続できないため、表示確認はユーザー端末で行う
