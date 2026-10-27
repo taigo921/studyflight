@@ -103,6 +103,10 @@ export interface Goals {
 
 export type SoundMode = "off" | "cabin" | "rain" | "white_noise";
 export type MapMode = "auto" | "3d" | "2d";
+/** 地図の見た目 */
+export type MapStyleId = "satellite" | "standard" | "dark" | "globe";
+/** フライト中のカメラ */
+export type FlightCamera = "follow" | "overview" | "window";
 
 export interface Preferences {
   language: "ja";
@@ -111,6 +115,9 @@ export interface Preferences {
   soundMode: SoundMode;
   reducedMotion: boolean;
   mapMode: MapMode;
+  mapStyle: MapStyleId;
+  mapLabels: boolean;
+  flightCamera: FlightCamera;
   backgroundBehavior: "continue";
   onboardedAt?: ISODate | null;
   /** 早期着陸を「完了」とみなす最小集中秒数 */

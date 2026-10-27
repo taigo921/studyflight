@@ -35,11 +35,21 @@ export function graticule(step = 30): GeoJSON.FeatureCollection<GeoJSON.LineStri
   return { type: "FeatureCollection", features };
 }
 
+let webglAvailable: boolean | null = null;
+
+/**
+ * WebGL が使えるか。判定は一度だけ行い、検査用のコンテキストはすぐ解放する
+ * （描画のたびに作るとブラウザのコンテキスト上限に達し、地図のコンテキストが破棄される）。
+ */
 export function isWebGLAvailable(): boolean {
+  if (webglAvailable !== null) return webglAvailable;
   try {
     const canvas = document.createElement("canvas");
-    return !!(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+    const gl = (canvas.getContext("webgl2") || canvas.getContext("webgl")) as WebGLRenderingContext | null;
+    webglAvailable = !!gl;
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
   } catch {
-    return false;
+    webglAvailable = false;
   }
+  return webglAvailable;
 }

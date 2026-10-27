@@ -5,11 +5,11 @@ import dynamic from "next/dynamic";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { LngLat } from "@/domain/geo";
-import type { MapMode } from "@/domain/types";
+import type { FlightCamera, MapMode, MapStyleId } from "@/domain/types";
 import { isWebGLAvailable } from "@/lib/world";
 import { RouteMap2D } from "./RouteMap2D";
 
-const GlobeMap = dynamic(() => import("./GlobeMap"), { ssr: false, loading: () => null });
+const FlightMapView = dynamic(() => import("./FlightMapView"), { ssr: false, loading: () => null });
 
 const subscribeNothing = () => () => {};
 
@@ -19,8 +19,14 @@ export interface FlightMapProps {
   originCode: string;
   destinationCode: string;
   progress: number;
+  getProgress: () => number;
+  plannedSeconds: number;
   mapMode: MapMode;
+  styleId: MapStyleId;
+  labels: boolean;
+  camera: FlightCamera;
   reducedMotion: boolean;
+  onTileTrouble?: () => void;
 }
 
 export function FlightMap(props: FlightMapProps) {
@@ -31,14 +37,14 @@ export function FlightMap(props: FlightMapProps) {
 
   const flat = (
     <div className="absolute inset-0">
-      <RouteMap2D {...props} />
+      <RouteMap2D origin={props.origin} destination={props.destination} originCode={props.originCode} destinationCode={props.destinationCode} progress={props.progress} />
     </div>
   );
   return (
     <div className="absolute inset-0 overflow-hidden" data-map-mode={use3d ? "3d" : "2d"} data-map-error={failed ?? undefined}>
       {use3d ? (
         <ErrorBoundary fallback={flat} onError={(e) => onFail(e.message)}>
-          <GlobeMap {...props} onFail={onFail} />
+          <FlightMapView {...props} onFail={onFail} />
         </ErrorBoundary>
       ) : (
         flat

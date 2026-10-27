@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlightMap } from "@/components/flight/FlightMap";
-import { IconClose, IconLanding, IconMute, IconPause, IconPlay, IconSound } from "@/components/icons/Icons";
+import { IconClose, IconFollow, IconLanding, IconLayers, IconMute, IconPause, IconPlay, IconRoute, IconSound, IconWindow } from "@/components/icons/Icons";
+import { MapStyleSheet } from "@/components/flight/MapStyleSheet";
+import { WindowFrame } from "@/components/flight/WindowFrame";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressRing";
 import { Sheet } from "@/components/ui/Sheet";
 import { SubjectBadge } from "@/components/ui/SubjectBadge";
 import { updatePreferences } from "@/data/settings";
 import { abandonFlight, completeIfDue, landFlightEarly, pauseFlight, resumeFlight } from "@/data/sessions";
-import { formatClock, formatKm, percent } from "@/domain/format";
+import { formatClock, percent } from "@/domain/format";
 import { flightPositionAt, type LngLat } from "@/domain/geo";
 import { earlyLandingOutcome, elapsedSeconds, hasClockAnomaly, progressOf, remainingSeconds } from "@/domain/session";
 import { ARRIVE_IF_PROGRESS_AT_LEAST } from "@/domain/route-planner";
-import type { SoundMode } from "@/domain/types";
+import type { FlightCamera, SoundMode } from "@/domain/types";
 import { usePreferences, useSession } from "@/features/data-hooks";
 import { useAirports } from "@/features/useAirports";
 import { useNow } from "@/features/useNow";
@@ -33,8 +35,21 @@ export function FlightScreen() {
   const [busy, setBusy] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
   const [playing, setPlaying] = useState<SoundMode>("off");
+  const [styleOpen, setStyleOpen] = useState(false);
   const sound = useRef<AmbientSound | null>(null);
   const landing = useRef(false);
+  // 地図は毎フレーム進捗を読むので、最新のセッションを ref 経由で渡す
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  });
+  const getProgress = useCallback(() => (sessionRef.current ? progressOf(sessionRef.current, Date.now()) : 0), []);
+  const tileWarned = useRef(false);
+  const onTileTrouble = useCallback(() => {
+    if (tileWarned.current) return;
+    tileWarned.current = true;
+    toast("衛星画像を読み込めません。通信状況を確認するか、地図を「地球」に切り替えてください", "error");
+  }, []);
 
   const isActive = session?.status === "active";
   useWakeLock(isActive);
@@ -164,6 +179,13 @@ export function FlightScreen() {
     }
   };
 
+  const cameraOptions: { id: FlightCamera; label: string; icon: React.ReactNode }[] = [
+    { id: "follow", label: "機体を追う", icon: <IconFollow size={20} /> },
+    { id: "overview", label: "航路全体", icon: <IconRoute size={20} /> },
+    { id: "window", label: "窓から見る", icon: <IconWindow size={20} /> },
+  ];
+  const glass = "inline-flex size-12 items-center justify-center rounded-full border border-white/15 bg-night/55 text-ink shadow-lg backdrop-blur-md transition-colors hover:bg-night/75";
+
   return (
     <main className="relative h-dvh overflow-hidden bg-night select-none" data-testid="flight-screen" data-status={session.status}>
       {origin && destination ? (
@@ -173,92 +195,137 @@ export function FlightScreen() {
           originCode={session.originCode}
           destinationCode={session.destinationCode}
           progress={progress}
+          getProgress={getProgress}
+          plannedSeconds={session.plannedSeconds}
           mapMode={prefs.mapMode}
+          styleId={prefs.mapStyle}
+          labels={prefs.mapLabels}
+          camera={prefs.flightCamera}
           reducedMotion={prefs.reducedMotion}
+          onTileTrouble={onTileTrouble}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-mute">航路データを読み込み中…</div>
       )}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-night via-night/70 to-transparent" aria-hidden />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-night via-night/85 to-transparent" aria-hidden />
+      {prefs.flightCamera === "window" && <WindowFrame />}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[6] h-36 bg-gradient-to-b from-night/80 to-transparent" aria-hidden />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-64 bg-gradient-to-t from-night/90 via-night/50 to-transparent" aria-hidden />
 
-      {/* 上部 HUD */}
+      {/* 上部: 閉じる・便情報 */}
       <header className="px-safe pt-safe absolute inset-x-0 top-0 z-10">
-        <div className="mx-auto flex max-w-xl items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="tabular text-[28px] leading-tight font-bold tracking-wider">
-              {session.originCode} <span className="text-sky">→</span> {session.destinationCode}
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <SubjectBadge name={session.subjectName} color={session.subjectColor} size="sm" />
-              {session.taskTitle && <span className="truncate text-xs text-mute">{session.taskTitle}</span>}
-            </div>
-            <p className="mt-1.5 text-[10px] text-mute/70">地図データ: Natural Earth（パブリックドメイン）· 航路・機影は演出です</p>
-          </div>
-          <Link
-            href="/"
-            aria-label="ホームへ（フライトは続きます）"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-line/70 bg-surface/70 text-mute backdrop-blur hover:text-ink"
-          >
-            <IconClose />
+        <div className="flex items-start justify-between gap-3">
+          <Link href="/" aria-label="ホームへ（フライトは続きます）" className={glass}>
+            <IconClose size={20} />
           </Link>
-        </div>
-      </header>
-
-      {/* 下部: タイマーと操作 */}
-      <section className="px-safe pb-safe absolute inset-x-0 bottom-0 z-10" aria-label="フライト情報と操作">
-        <div className="mx-auto flex max-w-xl flex-col gap-4">
-          <div className="text-center">
-            <p className={`text-xs font-semibold tracking-[0.2em] ${paused ? "text-gold" : "text-sky"}`} aria-live="polite">
-              {paused ? "一時停止中" : "巡航中"}
+          <div className="min-w-0 flex-1 text-center">
+            <p className="tabular text-xl leading-tight font-bold tracking-wider drop-shadow">
+              {session.originCode} <span className="text-gold">→</span> {session.destinationCode}
             </p>
-            <p className="tabular text-[64px] leading-none font-bold tracking-tight" role="timer" aria-label={`残り時間 ${formatClock(remaining)}`} data-testid="remaining">
-              {formatClock(remaining)}
-            </p>
-            <p className="tabular mt-1 text-sm text-mute">
-              経過 <span className="text-ink" data-testid="elapsed">{formatClock(elapsed)}</span> / {formatClock(session.plannedSeconds)}
-            </p>
-          </div>
-          <div>
-            <ProgressBar value={progress} color="var(--color-gold)" label="飛行の進捗" />
-            <div className="tabular mt-1.5 flex justify-between text-xs text-mute">
-              <span data-testid="progress">{percent(progress)}</span>
-              <span>{pos ? `残り ${formatKm(pos.remainingKm)}` : formatKm(session.distanceKm)}</span>
+            <div className="mt-1 flex justify-center">
+              <SubjectBadge name={session.subjectName} color={session.subjectColor} size="sm" />
             </div>
           </div>
-
-          {anomaly && (
-            <p className="rounded-2xl border border-gold/40 bg-gold/10 px-3 py-2 text-xs text-gold" role="alert">
-              端末の時刻が出発時刻より前に戻っています。経過時間は0未満にならないよう補正されます。
-            </p>
-          )}
-
-          <div className="grid grid-cols-3 gap-3">
-            {paused ? (
-              <Button size="lg" disabled={busy} onClick={() => run(() => resumeFlight(session.id), "再開できませんでした")} aria-label="再開">
-                <IconPlay size={20} /> 再開
-              </Button>
-            ) : (
-              <Button size="lg" variant="secondary" disabled={busy} onClick={() => run(() => pauseFlight(session.id), "一時停止できませんでした")} aria-label="一時停止">
-                <IconPause size={20} /> 停止
-              </Button>
-            )}
-            <Button size="lg" variant="secondary" onClick={() => setSoundOpen(true)} aria-label={`サウンド: ${SOUND_LABELS[playing]}`}>
-              {playing === "off" ? <IconMute size={20} /> : <IconSound size={20} />}
-              <span className="text-sm">{playing === "off" ? "音" : SOUND_LABELS[playing]}</span>
-            </Button>
-            <Button size="lg" variant="gold" disabled={busy} onClick={onLand} aria-label="早期着陸">
-              <IconLanding size={20} /> 着陸
-            </Button>
-          </div>
-          <div className="flex items-center justify-between gap-3 text-[11px] text-mute/80">
-            <p>画面を閉じてもタイマーは時刻にもとづいて進みます。実際に学習していたかは計測しません。</p>
-            <button type="button" onClick={onAbandon} disabled={busy} className="min-h-11 shrink-0 rounded-xl px-2 text-xs text-danger/90 hover:text-danger">
-              破棄
+          <div className="flex flex-col items-center gap-1">
+            <button type="button" onClick={() => setStyleOpen(true)} aria-label="地図の見た目を変える" className={glass}>
+              <IconLayers size={20} />
+            </button>
+            <button type="button" onClick={() => setStyleOpen(true)} className="min-h-6 rounded-full px-2 text-[10px] text-mute/90" aria-label="地図の出典を表示">
+              ⓘ 出典
             </button>
           </div>
         </div>
+      </header>
+
+      {/* 左: 停止・サウンド */}
+      <div className="absolute top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3" style={{ left: "max(var(--safe-left), 14px)" }}>
+        {paused ? (
+          <button type="button" className={`${glass} !bg-gold !text-night`} disabled={busy} onClick={() => run(() => resumeFlight(session.id), "再開できませんでした")} aria-label="再開">
+            <IconPlay size={20} />
+          </button>
+        ) : (
+          <button type="button" className={glass} disabled={busy} onClick={() => run(() => pauseFlight(session.id), "一時停止できませんでした")} aria-label="一時停止">
+            <IconPause size={20} />
+          </button>
+        )}
+        <button type="button" className={glass} onClick={() => setSoundOpen(true)} aria-label={`サウンド: ${SOUND_LABELS[playing]}`}>
+          {playing === "off" ? <IconMute size={20} /> : <IconSound size={20} />}
+        </button>
+      </div>
+
+      {/* 右: カメラ */}
+      <div
+        role="radiogroup"
+        aria-label="カメラ"
+        className="absolute top-1/2 z-10 flex -translate-y-1/2 flex-col gap-1 rounded-full border border-white/15 bg-night/55 p-1 shadow-lg backdrop-blur-md"
+        style={{ right: "max(var(--safe-right), 14px)" }}
+      >
+        {cameraOptions.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            role="radio"
+            aria-checked={prefs.flightCamera === c.id}
+            aria-label={c.label}
+            onClick={() => updatePreferences({ flightCamera: c.id })}
+            className={`inline-flex size-11 items-center justify-center rounded-full transition-colors ${prefs.flightCamera === c.id ? "bg-gold text-night" : "text-ink hover:bg-white/10"}`}
+          >
+            {c.icon}
+          </button>
+        ))}
+      </div>
+
+      {/* 下部: 残り時間・残り距離・着陸 */}
+      <section className="px-safe pb-safe absolute inset-x-0 bottom-0 z-10" aria-label="フライト情報と操作">
+        <div className="mx-auto flex max-w-xl flex-col gap-3 short:max-w-3xl short:gap-2">
+          {anomaly && (
+            <p className="rounded-2xl border border-gold/40 bg-night/80 px-3 py-2 text-xs text-gold" role="alert">
+              端末の時刻が出発時刻より前に戻っています。経過時間は0未満にならないよう補正されます。
+            </p>
+          )}
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className={`text-xs font-semibold ${paused ? "text-gold" : "text-mute"}`} aria-live="polite">
+                {paused ? "一時停止中" : "残り時間"}
+              </p>
+              <p className="tabular text-[44px] leading-none font-bold tracking-tight drop-shadow short:text-[32px]" role="timer" aria-label={`残り時間 ${formatClock(remaining)}`} data-testid="remaining">
+                {formatClock(remaining)}
+              </p>
+              <p className="tabular mt-1 text-xs text-mute">
+                経過 <span data-testid="elapsed">{formatClock(elapsed)}</span> · <span data-testid="progress">{percent(progress)}</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-mute">残り距離</p>
+              <p className="tabular text-[32px] leading-none font-bold drop-shadow short:text-[26px]">
+                {pos ? Math.round(pos.remainingKm).toLocaleString("ja-JP") : Math.round(session.distanceKm)}
+                <span className="ml-1 text-base text-mute">km</span>
+              </p>
+            </div>
+          </div>
+          <ProgressBar value={progress} color="var(--color-gold)" label="飛行の進捗" />
+          <div className="flex items-center gap-3 short:justify-center">
+            <Button size="lg" variant="gold" disabled={busy} onClick={onLand} aria-label="早期着陸" className="flex-1 short:min-h-11 short:flex-none short:px-8">
+              <IconLanding size={20} /> 着陸する
+            </Button>
+            <button type="button" onClick={onAbandon} disabled={busy} className="min-h-11 shrink-0 rounded-xl px-3 text-xs text-danger/90 hover:text-danger">
+              破棄
+            </button>
+          </div>
+          <p className="text-[10px] text-mute/80 short:hidden">画面を閉じてもタイマーは時刻にもとづいて進みます。航路・高度・景色は演出です。</p>
+        </div>
       </section>
+
+      <MapStyleSheet
+        open={styleOpen}
+        onClose={() => setStyleOpen(false)}
+        value={prefs.mapStyle}
+        labels={prefs.mapLabels}
+        onChange={(v) => {
+          void updatePreferences({ mapStyle: v });
+          setStyleOpen(false);
+        }}
+        onLabels={(v) => void updatePreferences({ mapLabels: v })}
+      />
 
       <Sheet open={soundOpen} onClose={() => setSoundOpen(false)} title="サウンド">
         <div role="radiogroup" aria-label="サウンド" className="flex flex-col gap-2">
@@ -281,4 +348,3 @@ export function FlightScreen() {
     </main>
   );
 }
-

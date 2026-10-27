@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { skipOnboarding, startFlight, T0 } from "./helpers";
+import { chooseSeat, setMinutes, skipOnboarding, startFlight, T0 } from "./helpers";
 
 test.describe("集中フロー", () => {
   test("初回スキップ→25分フライト→リロード復元→一時停止→着陸→記録・集計", async ({ page }) => {
@@ -26,6 +26,8 @@ test.describe("集中フロー", () => {
 
     // 再開して残り時間を飛ばすと自動で着陸
     await page.getByRole("button", { name: "再開" }).click();
+    // 再開の保存が終わってから時計を進める（先に進めると再開時刻が15分後として記録される）
+    await expect(page.getByTestId("flight-screen")).toHaveAttribute("data-status", "active");
     await page.clock.fastForward("15:30");
     await page.waitForURL(`**/arrival/?id=${id}`);
     await expect(page.getByTestId("arrival-focus")).toHaveText("25分");
@@ -114,10 +116,8 @@ test("iPhone 幅でボトムナビの各操作が 44px 以上", async ({ page })
     expect(box!.width).toBeGreaterThanOrEqual(44);
   }
   await page.goto("/boarding/");
-  for (const name of ["25分", "45分", "60分", "90分"]) {
-    const box = await page.getByRole("radio", { name }).boundingBox();
-    expect(box!.height).toBeGreaterThanOrEqual(44);
-  }
+  const seatBox = await page.locator('button[aria-label^="座席 "]').first().boundingBox();
+  expect(seatBox!.height).toBeGreaterThanOrEqual(44);
   // 横スクロールが発生しない
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
@@ -160,9 +160,10 @@ test("旅がつながる: 着陸した空港が次の出発地になり、時間
 
   // 2便目: 出発地を指定しない → 現在地の羽田から。60分の候補に新千歳がある
   await page.goto("/boarding/");
-  await page.getByRole("radio", { name: "60分" }).click();
+  await chooseSeat(page);
   await expect(page.getByText("現在地").locator("..")).toContainText("HND");
-  await expect(page.getByRole("radiogroup", { name: "行き先の候補" }).getByRole("radio", { name: /^CTS/ })).toBeVisible();
+  await setMinutes(page, 60);
+  await expect(page.getByRole("radiogroup", { name: "行き先の候補" }).first().getByRole("radio", { name: /^CTS/ })).toBeAttached();
   await startFlight(page, null, "CTS", 60);
   await page.clock.fastForward("01:00:30");
   await page.waitForURL("**/arrival/**");

@@ -12,7 +12,8 @@ import { Segmented } from "@/components/ui/Segmented";
 import { Stepper } from "@/components/ui/Stepper";
 import { SUGGESTED_AIRPORT_IDS } from "@/data/core-airports";
 import { updateGoals, updatePreferences } from "@/data/settings";
-import type { Airport, MapMode } from "@/domain/types";
+import type { Airport, MapMode, MapStyleId } from "@/domain/types";
+import { MAP_STYLE_LABELS } from "@/lib/map-styles";
 import { deviceTimeZone } from "@/domain/zoned";
 import { useGoals, usePreferences } from "@/features/data-hooks";
 import { useAirports } from "@/features/useAirports";
@@ -136,6 +137,18 @@ export function SettingsScreen() {
             />
             <span className="text-xs text-mute">3D が使えない端末では自動で 2D の航路図に切り替わります。</span>
           </div>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-semibold">地図の見た目</span>
+            <select value={prefs.mapStyle} onChange={(e) => updatePreferences({ mapStyle: e.target.value as MapStyleId })} className="min-h-12 rounded-2xl border border-line bg-night px-3 text-ink">
+              {(Object.keys(MAP_STYLE_LABELS) as MapStyleId[]).map((id) => (
+                <option key={id} value={id}>
+                  {MAP_STYLE_LABELS[id]}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-mute">フライト中も右上のボタンから切り替えられます。衛星写真は Sentinel-2（約10m解像度）の雲なし合成画像です。</span>
+          </label>
+          <Toggle label="地名ラベル" checked={prefs.mapLabels} onChange={(v) => updatePreferences({ mapLabels: v })} />
           <Toggle label="動きを減らす" description="着陸演出やカメラの移動を最小限にします" checked={prefs.reducedMotion} onChange={(v) => updatePreferences({ reducedMotion: v })} />
         </Card>
 
@@ -153,7 +166,10 @@ export function SettingsScreen() {
           <SectionTitle>このアプリについて</SectionTitle>
           <p>StudyFlight は学習時間を仮想フライトとして記録するアプリです。航路・機体・飛行時間は演出であり、実在の航空便とは関係ありません。</p>
           <p>タイマーは保存した時刻から計算するため、画面を閉じても進みます。実際に学習していたかどうかは計測しません。また、他のアプリの使用を制限する機能はありません。</p>
-          <p>空港データ: OurAirports（パブリックドメイン） / 地図データ: Natural Earth（パブリックドメイン） / 地図描画: MapLibre GL JS（BSD-3-Clause）</p>
+          <p>
+            空港データ: OurAirports（パブリックドメイン） / 衛星画像: Sentinel-2 cloudless by EOX IT Services GmbH（Contains modified Copernicus Sentinel data） / 標高: Terrain Tiles（Mapzen, AWS
+            Open Data） / 地図・地名: OpenFreeMap, © OpenMapTiles, © OpenStreetMap contributors / 地図データ: Natural Earth（パブリックドメイン） / 地図描画: MapLibre GL JS（BSD-3-Clause）
+          </p>
           <p>サウンドは端末内で合成しています。ロゴ・アイコンは本アプリのオリジナルです。</p>
         </Card>
       </div>

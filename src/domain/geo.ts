@@ -121,3 +121,21 @@ export function flightPositionAt(origin: LngLat, destination: LngLat, progress: 
 export function projectEquirect(p: LngLat, width: number, height: number): [number, number] {
   return [((p[0] + 180) / 360) * width, ((90 - p[1]) / 180) * height];
 }
+
+/** 出発点から方位・距離だけ進んだ地点（大圏上）。 */
+export function destinationPoint(origin: LngLat, bearingDeg: number, km: number): LngLat {
+  const δ = km / EARTH_RADIUS_KM;
+  const θ = toRad(bearingDeg);
+  const φ1 = toRad(origin[1]);
+  const λ1 = toRad(origin[0]);
+  const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+  const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
+  return [((toDeg(λ2) + 540) % 360) - 180, toDeg(φ2)];
+}
+
+/** 出発点を中心とする半径 km の円（地図上の到達範囲の表示用）。 */
+export function circlePolygon(center: LngLat, km: number, steps = 96): LngLat[] {
+  const pts: LngLat[] = [];
+  for (let i = 0; i <= steps; i++) pts.push(destinationPoint(center, (360 * i) / steps, km));
+  return unwrapLongitudes(pts);
+}

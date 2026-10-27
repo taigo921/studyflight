@@ -6,7 +6,7 @@
 - ログイン不要。データは端末内の IndexedDB にのみ保存（JSON バックアップ / CSV 書き出しあり）
 - タイマーは保存した時刻から再計算するため、バックグラウンド・リロード・タブを閉じた後でも破綻しない
 - 3D 地球儀（MapLibre GL globe）が使えない端末では SVG の 2D 航路図に自動で切り替え
-- 外部 API キー・有料サービス不要（地図・空港データは同梱のパブリックドメインデータ）
+- 外部 API キー・有料サービス不要（衛星画像 = Sentinel-2 cloudless、地形 = Terrain Tiles、地図 = OpenFreeMap、オフライン用に Natural Earth を同梱）
 
 ## 必要環境
 
@@ -78,8 +78,15 @@ node scripts/serve.mjs out 3000 /studyflight   # http://127.0.0.1:3000/studyflig
 
 その他の静的ホスティング（Vercel / Cloudflare Pages 等）でも `out/` をそのまま配置できます（ルート配信なら BASE_PATH 不要）。
 
+## 地図の配信元の差し替え
+
+`.env.example` を参照。`NEXT_PUBLIC_SATELLITE_TILES` / `NEXT_PUBLIC_SATELLITE_ATTRIBUTION` / `NEXT_PUBLIC_SATELLITE_CREDIT` / `NEXT_PUBLIC_TERRAIN_TILES` / `NEXT_PUBLIC_VECTOR_STYLE_BASE` で変更できます。商用利用する場合は各配信元の規約を確認してください。
+
 ## ライセンス表記
 
+- 衛星画像: Sentinel-2 cloudless by EOX IT Services GmbH (Contains modified Copernicus Sentinel data)
+- 標高: Terrain Tiles (Mapzen, AWS Open Data)
+- 地図・地名: OpenFreeMap / © OpenMapTiles / © OpenStreetMap contributors
 - 空港データ: OurAirports — Public Domain
 - 地図データ: Natural Earth — Public Domain
 - 地図描画: MapLibre GL JS — BSD-3-Clause

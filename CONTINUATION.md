@@ -9,9 +9,9 @@
 - テスト結果（最終実行）:
   - `npm run lint` … 0 errors / 0 warnings
   - `npm run typecheck` … OK
-  - `npm test` … 80 tests passed
+  - `npm test` … 81 tests passed
   - `npm run build` … 14 routes 静的エクスポート、SW 107 ファイルをプリキャッシュ
-  - `npm run test:e2e` … 9 passed（iPhone 13 サイズの Chromium）
+  - `npm run test:e2e` … 10 passed（iPhone 13 サイズの Chromium。機能は 2D、3D はスモークテスト）
 
 ## 再開時のコマンド
 
@@ -58,6 +58,11 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 14. **現在地** = 最後に完了したフライトの着陸空港（なければホーム空港）。放棄（欠航）では移動しない。
 15. **ダイバート**: 早期着陸で進捗90%未満なら、その時点の機体位置に最も近い空港に着陸したものとして `landedAirportId/landedCode` を保存し、`distanceKm` は実際に飛んだ距離にする。訪問空港・現在地・軌跡・航路ログは着陸空港を使う。
 16. 手動で出発地を変えた場合、軌跡は「/」で区切って表示する。
+17. **地図の配信元（すべて APIキー不要）**: 衛星 = EOX Sentinel-2 cloudless 2024（`NEXT_PUBLIC_SATELLITE_TILES` で差し替え可。ライセンス表記は情報源で CC BY / CC BY-NC-SA が分かれるため、商用化時は要確認・差し替え）、地形 = AWS Terrain Tiles、標準/ダーク/ラベル = OpenFreeMap、地球 = 同梱 Natural Earth。外部タイルは SW で事前キャッシュしない。
+18. **参考アプリの扱い**: ユーザー提示のスクリーンショット（FocusFlight）は体験・機能の参考にとどめ、色・形・文言・レイアウトは独自に作成（AGENTS.md の方針）。
+19. **カメラ更新は0.5秒ごと**: 巡航時は機体が画面上で毎秒数ピクセルしか動かないため。再描画を減らしバッテリーを節約。
+20. **WebGL 判定は1回だけ**（以前は描画のたびにコンテキストを作り、上限超過で地図のコンテキストが破棄される不具合があった）。
+21. **E2E の構成**: 機能テストは WebGL 無効（2D）で実行、3D は「地球」スタイルでのスモークテスト（retries 2）。CI に GPU がなく SwiftShader の CPU 描画が重いため。workers は 1。
 
 ## 未完了・次にやること
 
@@ -82,6 +87,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 | 2026-10-27 | サブパス配信（NEXT_PUBLIC_BASE_PATH）対応、GitHub Pages ワークフロー追加 | /studyflight 配下で 3D・SW・データ取得を確認、ルート配信の E2E 7 件も再成功 | リポジトリ作成待ち |
 | 2026-10-28 | GitHub に push、Pages 有効化、Actions でデプロイ | CI: lint/型/テスト/ビルド/デプロイ 成功 | 実機確認待ち |
 | 2026-10-28 | 旅の仕組み（時間→行き先候補、現在地、軌跡、ダイバート） | unit 80 / E2E 9 成功 | 実機での操作感の確認待ち |
+| 2026-10-28 | 衛星画像・3D地形・カメラ3種・座席表・地図で行き先選択・チェックイン演出 | unit 81 / E2E 10（3回連続成功） | 衛星画像の実機表示確認待ち |
 
 ## 未決事項
 

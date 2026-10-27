@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* 横向きなど高さが低い画面 */
+@custom-variant short (@media (max-height: 520px));
+
 /* デザイントークン（STYLE_GUIDE §1）。ダークネイビー固定のテーマ。 */
 @theme {
   --color-night: #07101f;
@@ -174,6 +177,7 @@ html[data-reduced-motion="true"] *::after {
   transition-duration: 1ms !important;
 }
 
+
 /* MapLibre の帰属表示をテーマに合わせる */
 .maplibregl-ctrl-attrib {
   background: rgba(7, 16, 31, 0.6) !important;
@@ -195,4 +199,8 @@ input,
 select,
 textarea {
   font-size: 16px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

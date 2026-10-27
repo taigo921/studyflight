@@ -74,3 +74,14 @@ describe("機体位置", () => {
     expect(b).toBeLessThan(135);
   });
 });
+
+describe("到達範囲の円", () => {
+  it("方位・距離で進んだ点は指定距離になる", async () => {
+    const { destinationPoint, circlePolygon } = await import("../geo");
+    const p = destinationPoint(NKM, 90, 300);
+    expect(haversineKm(NKM, p)).toBeCloseTo(300, 3);
+    const ring = circlePolygon(NKM, 500, 36);
+    expect(ring).toHaveLength(37);
+    for (const q of ring) expect(haversineKm(NKM, [((q[0] + 540) % 360) - 180, q[1]])).toBeCloseTo(500, 3);
+  });
+});

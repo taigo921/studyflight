@@ -239,3 +239,26 @@ export const IconStar = (p: IconProps) => (
     <path d="m12 4 2.3 4.9 5.2.6-3.9 3.6 1.1 5.2L12 15.6l-4.7 2.7 1.1-5.2-3.9-3.6 5.2-.6Z" />
   </Base>
 );
+
+/** 追従カメラ（機体を後方から） */
+export const IconFollow = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 4.5 17 18l-5-2.6L7 18l5-13.5Z" />
+  </Base>
+);
+
+/** 客室の窓 */
+export const IconWindow = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="6.5" y="3.5" width="11" height="17" rx="5.5" />
+    <path d="M9 7.5c1.8-.9 4.2-.9 6 0" />
+  </Base>
+);
+
+/** 地図スタイル（重なったレイヤー） */
+export const IconLayers = (p: IconProps) => (
+  <Base {...p}>
+    <path d="m12 4 8.5 4.5L12 13 3.5 8.5 12 4Z" />
+    <path d="m3.5 12.5 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5" />
+  </Base>
+);

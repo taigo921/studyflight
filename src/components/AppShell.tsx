@@ -13,7 +13,7 @@ import { resolveDueFlights } from "@/data/sessions";
 import { registerServiceWorker } from "@/lib/sw-register";
 import { toast } from "@/store/ui";
 
-const IMMERSIVE = new Set(["/flight", "/arrival", "/onboarding"]);
+const IMMERSIVE = new Set(["/flight", "/arrival", "/onboarding", "/boarding"]);
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = normalizePath(usePathname());

@@ -84,6 +84,9 @@ const PreferencesSchema = z
     soundMode: z.enum(["off", "cabin", "rain", "white_noise"]),
     reducedMotion: z.boolean(),
     mapMode: z.enum(["auto", "3d", "2d"]),
+    mapStyle: z.enum(["satellite", "standard", "dark", "globe"]),
+    mapLabels: z.boolean(),
+    flightCamera: z.enum(["follow", "overview", "window"]),
     onboardedAt: isoNullable,
     earlyLandingMinSeconds: z.number().int().min(0).max(3600).optional(),
   })
