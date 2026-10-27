@@ -59,12 +59,24 @@ e2e/              Playwright
 
 設計の詳細・判断理由は `CONTINUATION.md`、要件は `PRODUCT_SPEC.md` / `STYLE_GUIDE.md`、進捗は `TASKS.md`。
 
-## デプロイ（未実施・要承認）
+## デプロイ（GitHub Pages）
 
-`out/` は任意の静的ホスティングに置けます（Vercel / Cloudflare Pages / GitHub Pages など）。
-- Vercel の場合: Framework = Next.js、Build Command = `npm run build`、Output Directory = `out`
-- `sw.js` は `Cache-Control: no-cache` で配信することを推奨（更新検知のため）
-- 公開デプロイはユーザーの明示的な許可後に行う
+`.github/workflows/deploy-pages.yml` が main への push ごとに lint・型・テスト・ビルドを行い、GitHub Pages に公開します。
+
+1. GitHub で空のリポジトリ（例: `studyflight`、Public）を作成し、このコードを main に push
+2. リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** にする（初回のみ）
+3. Actions の「Deploy to GitHub Pages」を再実行（または main に push）
+4. `https://<ユーザー名>.github.io/<リポジトリ名>/` で公開される
+
+サブパス配信のため、ビルド時に `NEXT_PUBLIC_BASE_PATH=/<リポジトリ名>` を自動で付けています。
+ローカルで同じ状態を再現する場合:
+
+```bash
+NEXT_PUBLIC_BASE_PATH=/studyflight npm run build
+node scripts/serve.mjs out 3000 /studyflight   # http://127.0.0.1:3000/studyflight/
+```
+
+その他の静的ホスティング（Vercel / Cloudflare Pages 等）でも `out/` をそのまま配置できます（ルート配信なら BASE_PATH 不要）。
 
 ## ライセンス表記
 

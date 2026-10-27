@@ -1,20 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import { AppShell } from "@/components/AppShell";
 import "./globals.css";
+import { withBase } from "@/lib/base-path";
 
 export const metadata: Metadata = {
   title: { default: "StudyFlight", template: "%s | StudyFlight" },
   description: "学習時間を仮想フライトに。科目を選んで搭乗し、集中して、着陸とともに記録する。",
   applicationName: "StudyFlight",
-  manifest: "/manifest.webmanifest",
+  manifest: withBase("/manifest.webmanifest"),
   appleWebApp: { capable: true, title: "StudyFlight", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
   icons: {
     icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon.svg", type: "image/svg+xml" },
+      { url: withBase("/icons/icon-192.png"), sizes: "192x192", type: "image/png" },
+      { url: withBase("/icons/icon.svg"), type: "image/svg+xml" },
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: withBase("/icons/apple-touch-icon.png"), sizes: "180x180" }],
   },
 };
 

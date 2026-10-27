@@ -10,6 +10,7 @@ import { flightPositionAt, haversineKm, type LngLat } from "@/domain/geo";
 import { graticule, WORLD_LAND_URL } from "@/lib/world";
 import { flownLines, multiLine, routeLines, zoomForDistance } from "./routeGeometry";
 import { planeSvgMarkup } from "./PlaneGlyph";
+import { withBase } from "@/lib/base-path";
 
 export interface GlobeMapProps {
   origin: LngLat;
@@ -62,7 +63,7 @@ export default function GlobeMap({ origin: originProp, destination: destProp, or
       try {
         const ml = await import("maplibre-gl");
         if (disposed || !container.current) return;
-        ml.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+        ml.setWorkerUrl(withBase("/maplibre/maplibre-gl-worker.mjs"));
         const start = flightPositionAt(origin, destination, latest.current.progress);
         const km = haversineKm(origin, destination);
         map = new ml.Map({

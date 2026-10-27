@@ -5,6 +5,8 @@ import { extname, join, normalize, resolve } from "node:path";
 
 const root = resolve(process.argv[2] ?? "out");
 const port = Number(process.argv[3] ?? 3000);
+// 例: node scripts/serve.mjs out 3000 /studyflight（GitHub Pages と同じサブパス配信を再現）
+const base = process.argv[4] ?? "";
 const types = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -40,7 +42,11 @@ async function resolveFile(urlPath) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
-  const file = await resolveFile(url.pathname);
+  if (base && !url.pathname.startsWith(base)) {
+    res.writeHead(404).end("Not found");
+    return;
+  }
+  const file = await resolveFile(url.pathname.slice(base.length) || "/");
   if (!file) {
     const notFound = await readFile(join(root, "404.html")).catch(() => "Not found");
     res.writeHead(404, { "content-type": types[".html"] });

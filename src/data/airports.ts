@@ -5,8 +5,9 @@ import { z } from "zod";
 import type { Airport } from "@/domain/types";
 import { CORE_AIRPORTS } from "./core-airports";
 import { getDb } from "./db";
+import { withBase } from "@/lib/base-path";
 
-const AIRPORTS_URL = "/data/airports.json";
+const AIRPORTS_URL = withBase("/data/airports.json");
 const META_KEY = "airportsDataset";
 
 const DatasetSchema = z.object({

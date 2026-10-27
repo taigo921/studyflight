@@ -1,7 +1,8 @@
 // 同梱の Natural Earth 陸地データ（Public Domain）。地球儀と 2D 地図で共有する。
 import type { LngLat } from "@/domain/geo";
+import { withBase } from "@/lib/base-path";
 
-export const WORLD_LAND_URL = "/data/world-land.json";
+export const WORLD_LAND_URL = withBase("/data/world-land.json");
 
 export interface LandCollection {
   type: "FeatureCollection";

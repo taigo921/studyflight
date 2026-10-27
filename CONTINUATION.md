@@ -57,15 +57,16 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 
 ## 未完了・次にやること
 
-1. iPhone 実機（Safari / ホーム画面 PWA）での検証: safe area、キーボード、バックグラウンド復帰、Wake Lock、音声、IndexedDB 永続化。HTTPS 配信が必要 → **公開（プレビュー）デプロイの許可が必要**
-2. VoiceOver での読み上げ確認、Lighthouse（PWA/パフォーマンス/アクセシビリティ）計測
-3. タイムゾーン変更の E2E（単体テストは済み）
-4. 空港データ JSON（約480KB / gzip 175KB）の初回展開時間を低速端末で計測。必要なら分割読み込み
-5. Phase 5（Supabase 同期）は許可後に着手
+1. **GitHub Pages への公開（デプロイ許可済み）**: ワークフローとサブパス対応は実装・検証済み。リポジトリ作成と Pages の Source 設定をユーザーに依頼中 → push 後に Actions の成功と公開 URL を確認
+2. iPhone 実機（Safari / ホーム画面 PWA）での検証: safe area、キーボード、バックグラウンド復帰、Wake Lock、音声、IndexedDB 永続化
+3. VoiceOver での読み上げ確認、Lighthouse（PWA/パフォーマンス/アクセシビリティ）計測
+4. タイムゾーン変更の E2E（単体テストは済み）
+5. 空港データ JSON（約480KB / gzip 175KB）の初回展開時間を低速端末で計測。必要なら分割読み込み
+6. Phase 5（Supabase 同期）は許可後に着手
 
 ## ブロッカー
 
-- 公開デプロイ（Vercel 等）は未実施。ユーザーの許可待ち。
+- 公開デプロイは許可済み。ただしこの環境の GitHub トークンではリポジトリを新規作成できないため、ユーザーによるリポジトリ作成待ち。Vercel の認証情報もなし。
 - 実機 iPhone での検証はこの環境では不可。
 
 ## 実装履歴
@@ -74,6 +75,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 |---|---|---|---|
 | 2026-10-27 | 設計書パッケージ作成 | 未実行 | 実装未着手 |
 | 2026-10-27 | Phase 0〜3 実装、Phase 4（PWA/SW/E2E/README） | lint/型/unit 70/build/E2E 7 すべて成功 | 実機検証・デプロイは要許可 |
+| 2026-10-27 | サブパス配信（NEXT_PUBLIC_BASE_PATH）対応、GitHub Pages ワークフロー追加 | /studyflight 配下で 3D・SW・データ取得を確認、ルート配信の E2E 7 件も再成功 | リポジトリ作成待ち |
 
 ## 未決事項
 

@@ -1,5 +1,6 @@
 // Service Worker の登録と更新導線。新しい版が待機中になったら利用者に知らせる。
 import { toast } from "@/store/ui";
+import { withBase } from "@/lib/base-path";
 
 export function registerServiceWorker(): void {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
@@ -13,7 +14,7 @@ export function registerServiceWorker(): void {
     window.location.reload();
   });
   navigator.serviceWorker
-    .register("/sw.js", { scope: "/" })
+    .register(withBase("/sw.js"), { scope: withBase("/") })
     .then((reg) => {
       const promptUpdate = (worker: ServiceWorker) =>
         toast("新しいバージョンがあります", "info", {

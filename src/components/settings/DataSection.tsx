@@ -9,6 +9,7 @@ import { applyImport, exportBackup, previewImport, sessionsToCsv, wipeAllData, t
 import { getDb } from "@/data/db";
 import { downloadText, timestampForFile } from "@/lib/download";
 import { confirmDialog, toast } from "@/store/ui";
+import { withBase } from "@/lib/base-path";
 
 export function DataSection() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -68,8 +69,7 @@ export function DataSection() {
     if (!ok) return;
     await wipeAllData();
     // DB を空にした後はメモリ上のキャッシュも含めて完全に初期化したいので、意図的にフルリロードする
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign("/onboarding/");
+    window.location.assign(withBase("/onboarding/"));
   };
 
   return (
