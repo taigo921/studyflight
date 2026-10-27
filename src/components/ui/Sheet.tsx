@@ -76,7 +76,7 @@ export function Sheet({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="animate-fade-up relative flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-surface shadow-2xl sm:rounded-3xl"
+        className="animate-fade-up relative flex w-full max-w-lg flex-col overflow-clip rounded-t-3xl border border-line bg-surface shadow-2xl sm:rounded-3xl"
         style={tall ? { height: SHEET_MAX } : { maxHeight: SHEET_MAX }}
       >
         <div className="shrink-0 px-5 pt-3">

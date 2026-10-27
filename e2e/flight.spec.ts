@@ -224,3 +224,22 @@ test("長い便は途中で学習を終えても、次回は同じ地点から�
   await page.waitForURL((u) => u.pathname === "/");
   await expect(page.getByRole("region", { name: "現在地と旅の軌跡" })).toContainText("OKA");
 });
+
+test("ログの記録をその場で削除できる（確認は同じシート内）", async ({ page }) => {
+  await page.clock.install({ time: T0 });
+  await skipOnboarding(page);
+  await startFlight(page, "NGO", "HND", 30);
+  await page.clock.fastForward("30:30");
+  await page.waitForURL("**/arrival/**");
+  await page.getByRole("button", { name: "保存して閉じる" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await page.getByRole("link", { name: "ログ" }).click();
+  await page.getByRole("button", { name: /NGOからHND/ }).click();
+  await page.getByRole("button", { name: "記録を削除" }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText("この記録を削除しますか？");
+  await confirm.getByRole("button", { name: "削除する" }).click();
+  await expect(page.getByText("記録を削除しました")).toBeVisible();
+  await expect(page.getByRole("button", { name: /NGOからHND/ })).toHaveCount(0);
+});

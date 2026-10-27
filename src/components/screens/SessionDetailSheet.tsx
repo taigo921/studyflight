@@ -11,7 +11,7 @@ import { formatDateTime, formatDuration, formatKm } from "@/domain/format";
 import type { FlightSession } from "@/domain/types";
 import { useSubjects } from "@/features/data-hooks";
 import { useAirports } from "@/features/useAirports";
-import { confirmDialog, toast } from "@/store/ui";
+import { toast } from "@/store/ui";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -27,6 +27,8 @@ export function SessionDetailSheet({ session, timezone, onClose }: { session: Fl
   const { byId } = useAirports();
   const [note, setNote] = useState(session.note ?? "");
   const [subjectId, setSubjectId] = useState(session.subjectId);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
   const st = statusLabel(session);
   const o = byId.get(session.originAirportId);
   const d = byId.get(session.landedAirportId ?? session.destinationAirportId);
@@ -41,17 +43,17 @@ export function SessionDetailSheet({ session, timezone, onClose }: { session: Fl
     onClose();
   };
 
+  // 削除の確認はこのシートの中で行う（別のダイアログを重ねない）
   const remove = async () => {
-    const ok = await confirmDialog({
-      title: "この記録を削除しますか？",
-      message: "削除した記録は元に戻せません。学習時間・ポイント・訪問空港の集計からも除外されます。",
-      confirmLabel: "削除する",
-      tone: "danger",
-    });
-    if (!ok) return;
-    await deleteSession(session.id);
-    toast("記録を削除しました");
-    onClose();
+    setBusy(true);
+    try {
+      await deleteSession(session.id);
+      toast("記録を削除しました");
+      onClose();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "削除できませんでした", "error");
+      setBusy(false);
+    }
   };
 
   return (
@@ -64,9 +66,28 @@ export function SessionDetailSheet({ session, timezone, onClose }: { session: Fl
           <LinkButton href={`/flight/?id=${session.id}`} className="w-full">
             フライトに戻る
           </LinkButton>
+        ) : confirming ? (
+          <div className="flex flex-col gap-3" role="alertdialog" aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-body">
+            <div>
+              <p id="delete-confirm-title" className="font-bold text-danger">
+                この記録を削除しますか？
+              </p>
+              <p id="delete-confirm-body" className="text-xs text-mute">
+                元に戻せません。学習時間・ポイント・訪問空港の集計からも除外されます。
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="secondary" onClick={() => setConfirming(false)} disabled={busy}>
+                キャンセル
+              </Button>
+              <Button variant="danger" onClick={remove} disabled={busy}>
+                削除する
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-[auto_1fr] gap-3">
-            <Button variant="danger" onClick={remove} aria-label="記録を削除">
+            <Button variant="danger" onClick={() => setConfirming(true)} aria-label="記録を削除">
               <IconTrash size={20} />
             </Button>
             <Button onClick={save} disabled={!dirty}>

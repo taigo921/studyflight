@@ -107,6 +107,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 | 2026-10-28 | GitHub に push、Pages 有効化、Actions でデプロイ | CI: lint/型/テスト/ビルド/デプロイ 成功 | 実機確認待ち |
 | 2026-10-28 | 統合指示書 Phase6: 利用権判定（サーバー発行前提）、紹介・ソーシャルの型、docs/ARCHITECTURE.md・LICENSES_AND_COSTS.md | lint/型/unit/build/E2E 成功 | 課金・同期は未実装（要承認） |
 | 2026-10-28 | 統合指示書 Phase5: 共有画像・UTM・分析イベント・同意・プライバシー・LP/先行登録・ja/en 土台 | lint/型/unit 120/build/E2E 12+3D 1 成功 | 送信先は要承認。既存画面の英語化は未完 |
+| 2026-10-28 | ログの記録削除: 確認ダイアログが記録シートの裏に出ていた → 確認を同じシート内に表示。確認ダイアログを画面のシートより手前に描画。シートを overflow-clip にしてスクロールずれ防止 | lint/型/unit 125/build/E2E 13+3D 1 | — |
 | 2026-10-28 | ホーム画面アイコンをユーザー提供画像（エンジン×本）に変更。元画像 assets/app-icon.png（白背景・角丸を除いた全面の正方形）から scripts/generate-icons.mjs で生成。URL に ?v=2 | build/E2E | iPhone は一度ホーム画面から削除して追加し直す必要あり |
 | 2026-10-28 | 実機フィードバック: 2016 版の雲の残り・拡大時の Blue Marble のぼやけ・下部文字の読みにくさ → 既定を 2024 版に戻す、Blue Marble は z8 まで、タイルキャッシュ自動、下部グラデーション強化 | lint/型/unit/build/E2E | 配信元の応答速度は実機で要確認 |
 | 2026-10-28 | 統合指示書 Phase3: Blue Marble 地球儀、衛星画像 2016 版（CC BY 4.0）既定、配信元比較 docs/MAP_PROVIDERS.md、描画品質設定、ETA・現在位置 | lint/型/unit 104/build/E2E 9+3D 1 成功 | 実機での画像表示確認、商用時の EOX 確認 |

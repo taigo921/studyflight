@@ -121,10 +121,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     <>
       <OfflineIndicator />
       <Toaster />
-      <ConfirmHost />
       <div className={immersive ? "" : "pb-nav"}>{children}</div>
       {!immersive && <ConsentBanner />}
       {!immersive && <BottomNav />}
+      {/* 確認ダイアログは画面内のシートより手前に出す（後に描画する） */}
+      <ConfirmHost />
     </>
   );
 }
