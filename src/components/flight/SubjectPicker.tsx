@@ -62,7 +62,7 @@ export function SubjectPicker({ subjects, value, onChange }: { subjects: Subject
             aria-checked={active}
             onClick={() => onChange(s.id)}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 text-[15px] font-semibold transition-colors"
-            style={active ? { borderColor: s.color, background: `${s.color}22`, color: s.color } : { borderColor: "var(--color-line)" }}
+            style={active ? { borderColor: s.color, background: `${s.color}33`, boxShadow: `inset 0 0 0 1px ${s.color}` } : { borderColor: "var(--color-line)" }}
           >
             <span className="size-2 rounded-full" style={{ background: s.color }} aria-hidden />
             {s.name}

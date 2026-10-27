@@ -2,7 +2,8 @@ import type { StudyTask, Subject } from "@/domain/types";
 import { newId } from "@/lib/id";
 import { getDb } from "./db";
 
-export const SUBJECT_COLORS = ["#66B3FF", "#74D6B2", "#EBC77B", "#B59CFF", "#FF9F7A", "#5FD1E0", "#F28DC0", "#A4B3CC"] as const;
+// 暗背景 (#111D33) で CVD・コントラスト検証済みのカテゴリ配色。順番に割り当てる（巡回しない前提で8色）
+export const SUBJECT_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"] as const;
 
 export const SAMPLE_SUBJECTS = ["生理学", "生化学", "微生物学", "歯科保存学", "口腔外科学", "歯科補綴学", "その他"];
 export const FREE_STUDY_NAME = "自由学習";
@@ -65,7 +66,7 @@ export async function ensureUsableSubject(): Promise<Subject> {
   const db = getDb();
   const active = (await db.subjects.toArray()).filter((s) => !s.archivedAt);
   if (active.length > 0) return active[0];
-  return createSubject(FREE_STUDY_NAME, "#A4B3CC");
+  return createSubject(FREE_STUDY_NAME);
 }
 
 export async function createTask(subjectId: string, title: string, estimatedMinutes?: number): Promise<StudyTask> {

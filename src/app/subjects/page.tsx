@@ -1,5 +1,8 @@
-import { ComingSoon } from "@/components/screens/ComingSoon";
+import type { Metadata } from "next";
+import { SubjectsScreen } from "@/components/screens/SubjectsScreen";
+
+export const metadata: Metadata = { title: "科目とタスク" };
 
 export default function Page() {
-  return <ComingSoon title="科目" />;
+  return <SubjectsScreen />;
 }
