@@ -77,6 +77,12 @@ function candidate(origin: Airport, a: Airport, source: FlightCandidate["source"
   return { airport: a, source, carriers, distanceKm, blockMinutes, sessions: sessionsNeeded(blockMinutes, studyMinutes), finalProgress, finalRemainingKm };
 }
 
+/** 任意の空港への候補（路線データに直行便があれば route、なければ estimated）。 */
+export function buildCandidate(origin: Airport, a: Airport, graph: RouteGraph | null, studyMinutes: number, final?: Airport | null): FlightCandidate {
+  const edge = graph?.get(origin.id)?.find((e) => e.to === a.id);
+  return candidate(origin, a, edge ? "route" : "estimated", edge?.carriers ?? [], studyMinutes, final);
+}
+
 /** 旅の目的地として扱う空港（IATA コードを持つ大・中規模空港）。 */
 export function isPassengerAirport(a: Airport): boolean {
   return !!a.iata && (a.type === "large_airport" || a.type === "medium_airport");

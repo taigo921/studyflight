@@ -5,12 +5,12 @@ import { BrandMark } from "@/components/BrandMark";
 import { FlightStub } from "@/components/flight/FlightStub";
 import { JourneyCard } from "@/components/flight/JourneyCard";
 import { useAirports } from "@/features/useAirports";
-import { currentLocationId } from "@/domain/route-planner";
+import { travelState } from "@/domain/route-planner";
 import { IconChevronRight, IconPlane, IconSettings, IconStreak, IconTarget } from "@/components/icons/Icons";
 import { LinkButton } from "@/components/ui/Button";
 import { Card, EmptyState, SectionTitle } from "@/components/ui/Card";
 import { ProgressBar, ProgressRing } from "@/components/ui/ProgressRing";
-import { useBoardingFlight, useOpenFlight, usePreferences } from "@/features/data-hooks";
+import { useActiveTrip, useBoardingFlight, useLegs, useOpenFlight, usePreferences } from "@/features/data-hooks";
 import { useNow } from "@/features/useNow";
 import { useStats } from "@/features/useStats";
 import { formatClock, formatDuration, percent } from "@/domain/format";
@@ -23,7 +23,10 @@ export function HomeScreen() {
   const boarding = useBoardingFlight();
   const prefs = usePreferences();
   const { byId } = useAirports();
-  const currentId = stats ? currentLocationId(stats.sessions, prefs.homeAirportId) : null;
+  const legs = useLegs();
+  const trip = useActiveTrip();
+  const travel = stats && legs ? travelState(stats.sessions, legs, prefs.homeAirportId) : null;
+  const currentId = travel?.kind === "ground" ? travel.airportId : null;
   const currentAirport = currentId ? (byId.get(currentId) ?? null) : null;
 
   const todayRatio = stats ? stats.todaySeconds / Math.max(1, stats.dailyGoalSeconds) : 0;
@@ -81,7 +84,7 @@ export function HomeScreen() {
           </Link>
         )}
 
-        <JourneyCard current={currentAirport} sessions={stats?.sessions ?? []} byId={byId} />
+        <JourneyCard current={currentAirport} sessions={stats?.sessions ?? []} byId={byId} airLeg={travel?.kind === "air" ? travel : null} trip={trip} />
 
         <Card className="relative overflow-hidden">
           <div className="flex items-center gap-5">

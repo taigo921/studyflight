@@ -122,6 +122,19 @@ export function SettingsScreen() {
         </Card>
 
         <Card className="flex flex-col gap-4">
+          <SectionTitle>行き先の候補</SectionTitle>
+          <Stepper label="学習時間より短い便（許容幅）" value={prefs.routeToleranceMinus} min={0} max={60} step={5} unit="分" onChange={(v) => updatePreferences({ routeToleranceMinus: v })} />
+          <Stepper label="学習時間より長い便（許容幅）" value={prefs.routeTolerancePlus} min={0} max={60} step={5} unit="分" onChange={(v) => updatePreferences({ routeTolerancePlus: v })} />
+          <p className="-mt-2 text-xs text-mute">例: 学習30分・許容幅10分なら、予定飛行時間20〜40分の便を「時間に合う便」として表示します。</p>
+          <Toggle
+            label="直行便データのない区間も候補に出す"
+            description="路線データ（OpenFlights, 2014年時点）に就航実績のない空港へも、距離から推定した時間で飛べるようにします。候補には「推定ルート」と表示されます。"
+            checked={prefs.includeEstimatedRoutes}
+            onChange={(v) => updatePreferences({ includeEstimatedRoutes: v })}
+          />
+        </Card>
+
+        <Card className="flex flex-col gap-4">
           <SectionTitle>表示</SectionTitle>
           <div className="flex flex-col gap-2 text-sm">
             <span className="font-semibold">フライト中の地図</span>

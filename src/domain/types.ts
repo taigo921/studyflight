@@ -163,6 +163,11 @@ export interface Preferences {
   mapStyle: MapStyleId;
   mapLabels: boolean;
   flightCamera: FlightCamera;
+  /** 行き先検索の許容幅（学習時間からの前後の分） */
+  routeToleranceMinus: number;
+  routeTolerancePlus: number;
+  /** 路線データがある空港でも推定ルート（直行便データなし）を候補に含める */
+  includeEstimatedRoutes: boolean;
   backgroundBehavior: "continue";
   onboardedAt?: ISODate | null;
   /** 早期着陸を「完了」とみなす最小集中秒数 */

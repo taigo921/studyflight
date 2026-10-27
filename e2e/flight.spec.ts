@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chooseSeat, setMinutes, skipOnboarding, startFlight, T0 } from "./helpers";
+import { chooseSeat, resumeFlight, setMinutes, skipOnboarding, startFlight, T0 } from "./helpers";
 
 test.describe("集中フロー", () => {
   test("初回スキップ→25分フライト→リロード復元→一時停止→着陸→記録・集計", async ({ page }) => {
@@ -150,41 +150,77 @@ test("旅がつながる: 着陸した空港が次の出発地になり、時間
   await page.clock.install({ time: T0 });
   await skipOnboarding(page);
 
-  // 1便目: 中部 → 羽田（25分）
-  await startFlight(page, "NGO", "HND", 25);
-  await page.clock.fastForward("25:30");
+  // 1便目: 中部 → 羽田（推定60分 / 学習60分）
+  await startFlight(page, "NGO", "HND", 60);
+  await page.clock.fastForward("01:00:30");
   await page.waitForURL("**/arrival/**");
+  await expect(page.getByTestId("arrival-title")).toContainText("到着");
   await page.getByRole("button", { name: "保存して閉じる" }).click();
   await page.waitForURL((u) => u.pathname === "/");
   await expect(page.getByRole("region", { name: "現在地と旅の軌跡" })).toContainText("HND");
 
-  // 2便目: 出発地を指定しない → 現在地の羽田から。60分の候補に新千歳がある
+  // 2便目: 出発地を指定しない → 現在地の羽田から。100分の「時間に合う便」に新千歳（推定105分）がある
   await page.goto("/boarding/");
   await chooseSeat(page);
   await expect(page.getByText("現在地").locator("..")).toContainText("HND");
-  await setMinutes(page, 60);
+  await setMinutes(page, 100);
   await expect(page.getByRole("radiogroup", { name: "行き先の候補" }).first().getByRole("radio", { name: /^CTS/ })).toBeAttached();
-  await startFlight(page, null, "CTS", 60);
-  await page.clock.fastForward("01:00:30");
+  await startFlight(page, null, "CTS", 100);
+  // 学習時間（100分）が予定飛行時間（105分）より短いので、今回は手前で上空待機
+  await expect(page.getByTestId("partial-note")).toBeVisible();
+  await page.clock.fastForward("01:40:30");
   await page.waitForURL("**/arrival/**");
+  await expect(page.getByTestId("arrival-title")).toContainText("上空で一時停止");
+  await page.getByRole("button", { name: "保存して閉じる" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await expect(page.getByTestId("journey-air")).toContainText("HND → CTS");
+
+  // 続き（残り5分）で到着
+  await resumeFlight(page, 30);
+  await page.clock.fastForward("05:30");
+  await page.waitForURL("**/arrival/**");
+  await expect(page.getByTestId("arrival-title")).toContainText("到着");
   await page.getByRole("button", { name: "保存して閉じる" }).click();
   await page.waitForURL((u) => u.pathname === "/");
   await expect(page.getByRole("list", { name: "これまでの旅" })).toHaveText(/NGO\s*→\s*HND\s*→\s*CTS/);
 });
 
-test("途中で早期着陸すると最寄り空港にダイバートし、そこが次の出発地になる", async ({ page }) => {
+test("長い便は途中で学習を終えても、次回は同じ地点から再開できる", async ({ page }) => {
   await page.clock.install({ time: T0 });
   await skipOnboarding(page);
-  await startFlight(page, "HND", "OKA", 150);
-  await page.clock.fastForward("01:00:00");
+  // 羽田 → 那覇（推定160分）を60分ずつ
+  await startFlight(page, "HND", "OKA", 60);
+  await page.clock.fastForward("30:00");
   await page.getByRole("button", { name: "早期着陸" }).click();
-  await expect(page.getByRole("dialog")).toContainText("ダイバート");
-  await page.getByRole("button", { name: "着陸する" }).click();
+  await expect(page.getByRole("dialog")).toContainText("この地点から OKA へ飛行を再開");
+  await page.getByRole("button", { name: "今回の学習を終える" }).click();
   await page.waitForURL("**/arrival/**");
-  await expect(page.getByText(/最寄りの空港にダイバートしました/)).toBeVisible();
+  await expect(page.getByTestId("arrival-title")).toContainText("上空で一時停止");
+  await expect(page.getByTestId("arrival-focus")).toHaveText("30分");
   await page.getByRole("button", { name: "保存して閉じる" }).click();
   await page.waitForURL((u) => u.pathname === "/");
-  const current = await page.getByRole("region", { name: "現在地と旅の軌跡" }).textContent();
-  expect(current).not.toContain("OKA");
-  expect(current).not.toMatch(/現在地HND/);
+  // 学習した30分ぶんだけ進んでいる（30/160 ≒ 19%）
+  await expect(page.getByTestId("journey-air")).toContainText("HND → OKA");
+  await expect(page.getByRole("region", { name: "現在地と旅の軌跡" })).toContainText("19%");
+
+  // リロードしても上空の状態が復元され、続きから飛べる
+  await page.reload();
+  await page.goto("/boarding/");
+  await chooseSeat(page);
+  await expect(page.getByText("上空で一時停止中")).toBeVisible();
+  await expect(page.getByText(/HND → OKA · 19%/)).toBeVisible();
+  await setMinutes(page, 150);
+  await page.getByRole("button", { name: "続きの搭乗券を発行" }).click();
+  await page.getByRole("button", { name: "チェックイン" }).click();
+  await page.getByRole("button", { name: "搭乗する" }).click();
+  await page.getByRole("button", { name: "出発する" }).click();
+  await page.waitForURL("**/flight/?id=*");
+  // 残り130分だけを飛ぶ
+  await expect(page.getByTestId("remaining")).toHaveText(/^2:(09|10):\d\d$/);
+  await page.clock.fastForward("02:10:30");
+  await page.waitForURL("**/arrival/**");
+  await expect(page.getByTestId("arrival-title")).toContainText("到着");
+  await page.getByRole("button", { name: "保存して閉じる" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await expect(page.getByRole("region", { name: "現在地と旅の軌跡" })).toContainText("OKA");
 });

@@ -58,6 +58,9 @@ export function ArrivalScreen() {
   const noteValue = note ?? session.note ?? "";
   const bonus = hasArrivalBonus(session);
   const tz = stats?.timezone ?? "UTC";
+  // 分割飛行の途中で終えた回（上空で停止）
+  const midAir = session.reachedDestination === false;
+  const legPct = session.legScheduledSeconds ? Math.min(100, Math.round((((session.legStartSeconds ?? 0) + (session.actualFocusSeconds ?? 0)) / session.legScheduledSeconds) * 100)) : 0;
 
   const save = async (next: string) => {
     try {
@@ -82,11 +85,29 @@ export function ArrivalScreen() {
             <path d={PLANE_PATH} fill="#F6F8FF" transform="rotate(90 12 12)" />
           </svg>
         </div>
-        <p className="text-xs font-semibold tracking-[0.25em] text-ok">{session.completionType === "early" ? "EARLY LANDING" : "ARRIVED ON TIME"}</p>
-        <h1 className="mt-1 text-[26px] font-bold">{dest ? airportDisplayName(dest) : session.destinationCode} に到着</h1>
-        <p className="tabular text-sm text-mute">
-          {session.originCode} → {session.landedCode ?? session.destinationCode} · 着陸 {formatTime(session.completedAt, tz)}
-        </p>
+        <p className={`text-xs font-semibold tracking-[0.25em] ${midAir ? "text-gold" : "text-ok"}`}>{midAir ? "HOLDING IN FLIGHT" : session.completionType === "early" ? "EARLY LANDING" : "ARRIVED ON TIME"}</p>
+        {midAir ? (
+          <>
+            <h1 className="mt-1 text-[24px] font-bold" data-testid="arrival-title">
+              {session.destinationCode} へ向けて上空で一時停止
+            </h1>
+            <p className="tabular text-sm text-mute">
+              {session.originCode} → {session.destinationCode} · 区間の {legPct}% · 終了 {formatTime(session.completedAt, tz)}
+            </p>
+            <p className="mt-2 rounded-2xl border border-gold/40 bg-gold/10 px-3 py-2 text-xs text-gold">
+              今回の学習はここまで記録しました。次のフライトは、この地点から {planned ? airportDisplayName(planned) : session.destinationCode} へ続きを飛びます。
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="mt-1 text-[26px] font-bold" data-testid="arrival-title">
+              {dest ? airportDisplayName(dest) : session.destinationCode} に到着
+            </h1>
+            <p className="tabular text-sm text-mute">
+              {session.originCode} → {session.landedCode ?? session.destinationCode} · 着陸 {formatTime(session.completedAt, tz)}
+            </p>
+          </>
+        )}
         {session.landedAirportId && (
           <p className="mt-2 rounded-2xl border border-gold/40 bg-gold/10 px-3 py-2 text-xs text-gold">
             予定していた {planned ? airportDisplayName(planned) : session.destinationCode} の手前で降りたため、最寄りの空港にダイバートしました。次はここから出発します。
@@ -155,7 +176,7 @@ export function ArrivalScreen() {
           保存して閉じる
         </Button>
         <Button size="lg" variant="secondary" onClick={() => save("/boarding/")}>
-          <IconPlane size={20} /> 次のフライトを予約
+          <IconPlane size={20} /> {midAir ? "続きを飛ぶ" : "次のフライトを予約"}
         </Button>
         <LinkButton href="/analytics/" variant="ghost">
           分析を見る

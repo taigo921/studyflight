@@ -4,12 +4,26 @@ import { Fragment } from "react";
 import { airportCodeOf, airportDisplayName } from "@/domain/airport-search";
 import { countryName } from "@/domain/format";
 import { journeyTrail } from "@/domain/route-planner";
-import type { Airport, FlightSession } from "@/domain/types";
+import type { Airport, FlightLeg, FlightSession, Trip } from "@/domain/types";
+import { ProgressBar } from "@/components/ui/ProgressRing";
 
 const MAX_STOPS = 8;
 
 /** 現在地と旅の軌跡（例: NGO → HND → CTS → OKA）。 */
-export function JourneyCard({ current, sessions, byId }: { current: Airport | null; sessions: FlightSession[]; byId: Map<string, Airport> }) {
+export function JourneyCard({
+  current,
+  sessions,
+  byId,
+  airLeg,
+  trip,
+}: {
+  current: Airport | null;
+  sessions: FlightSession[];
+  byId: Map<string, Airport>;
+  /** 上空で停止中の区間（分割飛行の途中） */
+  airLeg?: { leg: FlightLeg; progress: number } | null;
+  trip?: Trip | null;
+}) {
   const trail = journeyTrail(sessions);
   const shown = trail.slice(-MAX_STOPS);
   const code = (id: string) => {
@@ -21,7 +35,14 @@ export function JourneyCard({ current, sessions, byId }: { current: Airport | nu
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold tracking-[0.14em] text-mute">現在地</p>
-          {current ? (
+          {airLeg ? (
+            <p className="truncate" data-testid="journey-air">
+              <span className="tabular mr-2 text-xl font-bold text-gold">
+                {airLeg.leg.originCode} → {airLeg.leg.destinationCode}
+              </span>
+              <span className="text-sm">上空で待機中</span>
+            </p>
+          ) : current ? (
             <p className="truncate">
               <span className="tabular mr-2 text-xl font-bold text-gold">{airportCodeOf(current)}</span>
               <span className="text-sm">{airportDisplayName(current)}</span>
@@ -30,8 +51,21 @@ export function JourneyCard({ current, sessions, byId }: { current: Airport | nu
             <p className="text-sm text-mute">最初のフライトで旅が始まります</p>
           )}
         </div>
-        {current && <span className="shrink-0 text-xs text-mute">{countryName(current.countryCode)}</span>}
+        {!airLeg && current && <span className="shrink-0 text-xs text-mute">{countryName(current.countryCode)}</span>}
       </div>
+      {airLeg && (
+        <div className="mt-3 flex flex-col gap-1.5">
+          <ProgressBar value={airLeg.progress} color="var(--color-gold)" label="区間の進捗" />
+          <p className="tabular text-xs text-mute">
+            {Math.round(airLeg.progress * 100)}% · {airLeg.leg.destinationCode} まで残り約 {Math.max(1, Math.ceil((airLeg.leg.scheduledSeconds - airLeg.leg.flownSeconds) / 60))} 分。次のフライトはこの地点から再開します。
+          </p>
+        </div>
+      )}
+      {trip?.finalDestinationId && byId.get(trip.finalDestinationId) && (
+        <p className="mt-2 text-xs text-mute">
+          最終目的地 <span className="font-semibold text-sky">{airportCodeOf(byId.get(trip.finalDestinationId)!)}</span> {airportDisplayName(byId.get(trip.finalDestinationId)!)}
+        </p>
+      )}
       {trail.length > 1 && (
         <ol className="tabular mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm" aria-label="これまでの旅">
           {trail.length > MAX_STOPS && <li className="text-mute">…</li>}

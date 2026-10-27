@@ -6,14 +6,14 @@ import type { GeoJSONSource, Map as MLMap, Marker } from "maplibre-gl";
 import MapCanvas, { type MapLib } from "@/components/map/MapCanvas";
 import { airportCodeOf } from "@/domain/airport-search";
 import { circlePolygon, type LngLat } from "@/domain/geo";
-import type { Candidate } from "@/domain/route-planner";
+import type { FlightCandidate } from "@/domain/route-search";
 import type { Airport, MapStyleId } from "@/domain/types";
 import { multiLine, routeLines } from "@/components/flight/routeGeometry";
 
 export interface RoutePickerMapProps {
   origin: Airport;
   reachKm: number;
-  candidates: Candidate[];
+  candidates: Pick<FlightCandidate, "airport">[];
   selectedId: string | null;
   onSelect: (a: Airport) => void;
   styleId: MapStyleId;

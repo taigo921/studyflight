@@ -46,8 +46,26 @@ export async function pickDestination(page: Page, code: string) {
   await pickAirport(page, "到着", code);
 }
 
+/** 行き先選びの画面（初回の出発地選び / 地上 / 上空で一時停止中）が表示されるまで待つ。 */
+export async function waitRouteStep(page: Page): Promise<"origin" | "ground" | "air"> {
+  const origin = page.getByRole("button", { name: /^出発空港を選択$/ });
+  const air = page.getByRole("button", { name: "続きの搭乗券を発行" });
+  const ground = page.getByRole("slider", { name: "集中する時間" });
+  await expect(origin.or(air).or(ground).first()).toBeVisible();
+  if (await origin.count()) return "origin";
+  return (await air.count()) ? "air" : "ground";
+}
+
+/** 上空で止まっている区間をやめて出発空港に戻る。 */
+export async function cancelPausedLeg(page: Page) {
+  await page.getByRole("button", { name: "この区間をやめて出発空港に戻る" }).click();
+  await page.getByRole("button", { name: "やめて戻る" }).click();
+  await expect(page.getByRole("button", { name: "続きの搭乗券を発行" })).toHaveCount(0);
+}
+
 /** 出発地を変える（現在地と異なる空港から飛ぶとき）。 */
 export async function changeOrigin(page: Page, code: string) {
+  if ((await waitRouteStep(page)) === "air") await cancelPausedLeg(page);
   const direct = page.getByRole("button", { name: /^出発空港を選択$/ });
   if (await direct.count()) {
     await pickAirport(page, "出発", code);
@@ -65,10 +83,24 @@ export async function startFlight(page: Page, from: string | null = "NKM", to = 
   await page.goto("/boarding/");
   await chooseSeat(page);
   if (from) await changeOrigin(page, from);
-  else if (await page.getByRole("button", { name: /^出発空港を選択$/ }).count()) throw new Error("出発地が未設定です");
+  else if ((await waitRouteStep(page)) === "origin") throw new Error("出発地が未設定です");
   await setMinutes(page, minutes);
   await pickDestination(page, to);
   await page.getByRole("button", { name: /行きの搭乗券を発行/ }).click();
+  return boardAndDepart(page);
+}
+
+/** 上空で止まっている区間の続きを飛ぶ。 */
+export async function resumeFlight(page: Page, minutes: number): Promise<string> {
+  await page.goto("/boarding/");
+  await chooseSeat(page);
+  expect(await waitRouteStep(page)).toBe("air");
+  await setMinutes(page, minutes);
+  await page.getByRole("button", { name: "続きの搭乗券を発行" }).click();
+  return boardAndDepart(page);
+}
+
+async function boardAndDepart(page: Page): Promise<string> {
   await page.getByRole("button", { name: "チェックイン" }).click();
   await page.getByRole("button", { name: "搭乗する" }).click();
   await page.getByRole("button", { name: "出発する" }).click();
