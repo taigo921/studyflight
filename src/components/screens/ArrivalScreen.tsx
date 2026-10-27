@@ -17,6 +17,9 @@ import { useAirports } from "@/features/useAirports";
 import { useNow } from "@/features/useNow";
 import { useStats } from "@/features/useStats";
 import { toast } from "@/store/ui";
+import { ShareSheet } from "@/components/share/ShareSheet";
+import type { FlightLogData } from "@/features/share/flightlog-image";
+import { useLang, useMessages } from "@/i18n";
 
 function useCountUp(target: number, enabled: boolean, ms = 900): number {
   const [v, setV] = useState(0);
@@ -44,6 +47,9 @@ export function ArrivalScreen() {
   const { byId } = useAirports();
   const [note, setNote] = useState<string | null>(null);
   const [skipped, setSkipped] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const m = useMessages();
+  const lang = useLang();
   const animate = !prefs.reducedMotion && !skipped;
   const points = useCountUp(session?.earnedSkyPoints ?? 0, animate && session?.status === "completed");
 
@@ -61,6 +67,25 @@ export function ArrivalScreen() {
   // 分割飛行の途中で終えた回（上空で停止）
   const midAir = session.reachedDestination === false;
   const legPct = session.legScheduledSeconds ? Math.min(100, Math.round((((session.legStartSeconds ?? 0) + (session.actualFocusSeconds ?? 0)) / session.legScheduledSeconds) * 100)) : 0;
+
+  const o = byId.get(session.originAirportId);
+  const shareData: FlightLogData = {
+    originCode: session.originCode,
+    destinationCode: session.destinationCode,
+    originName: o ? (lang === "ja" ? (o.nameJa ?? o.name) : o.name) : undefined,
+    destinationName: planned ? (lang === "ja" ? (planned.nameJa ?? planned.name) : planned.name) : undefined,
+    origin: o ? [o.lng, o.lat] : null,
+    destination: planned ? [planned.lng, planned.lat] : null,
+    focusSeconds: session.actualFocusSeconds ?? 0,
+    distanceKm: session.distanceKm,
+    points: session.earnedSkyPoints,
+    subjectName: session.subjectName,
+    subjectColor: session.subjectColor,
+    dateLabel: new Intl.DateTimeFormat(lang === "ja" ? "ja-JP" : "en-US", { timeZone: tz, year: "numeric", month: "short", day: "numeric" }).format(new Date(session.completedAt ?? session.updatedAt)),
+    displayName: prefs.displayName,
+    midAir,
+    legProgress: midAir ? legPct / 100 : 1,
+  };
 
   const save = async (next: string) => {
     try {
@@ -175,6 +200,9 @@ export function ArrivalScreen() {
         <Button size="lg" onClick={() => save("/")}>
           保存して閉じる
         </Button>
+        <Button size="lg" variant="gold" onClick={() => setShareOpen(true)}>
+          {m.share.open}
+        </Button>
         <Button size="lg" variant="secondary" onClick={() => save("/boarding/")}>
           <IconPlane size={20} /> {midAir ? "続きを飛ぶ" : "次のフライトを予約"}
         </Button>
@@ -182,6 +210,7 @@ export function ArrivalScreen() {
           分析を見る
         </LinkButton>
       </div>
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} data={shareData} />
     </main>
   );
 }

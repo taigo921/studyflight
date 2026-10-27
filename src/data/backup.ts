@@ -112,6 +112,7 @@ const GoalsSchema = z.object({
 
 const PreferencesSchema = z
   .object({
+    language: z.enum(["ja", "en"]),
     displayName: z.string().max(40).optional(),
     homeAirportId: z.string().optional(),
     soundMode: z.enum(["off", "cabin", "rain", "white_noise"]),

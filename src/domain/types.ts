@@ -155,7 +155,7 @@ export type FlightCamera = "follow" | "overview" | "window";
 export type RenderQuality = "auto" | "low" | "high";
 
 export interface Preferences {
-  language: "ja";
+  language: "ja" | "en";
   displayName?: string;
   homeAirportId?: string;
   soundMode: SoundMode;

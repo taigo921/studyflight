@@ -11,6 +11,7 @@ import { updatePreferences } from "@/data/settings";
 import { ensureUsableSubject, SAMPLE_SUBJECTS, seedSubjects } from "@/data/subjects";
 import type { Airport } from "@/domain/types";
 import { useAirports } from "@/features/useAirports";
+import { track } from "@/lib/analytics";
 import { toast } from "@/store/ui";
 
 const STEPS = ["ようこそ", "科目", "ホーム空港"];
@@ -36,6 +37,7 @@ export function OnboardingScreen() {
         onboardedAt: new Date().toISOString(),
         ...(skip ? {} : { homeAirportId: home?.id, displayName: name.trim() || undefined }),
       });
+      track("onboarding_completed", { skipped: skip, subjects: skip ? 0 : picked.length + extra.length, home_set: !skip && !!home });
       router.replace(skip ? "/" : "/boarding/");
     } catch (e) {
       toast(e instanceof Error ? e.message : "保存できませんでした", "error");

@@ -20,6 +20,7 @@ import {
   type TransitionResult,
 } from "@/domain/session";
 import type { Airport, FlightLeg, FlightSession, Subject } from "@/domain/types";
+import { track } from "@/lib/analytics";
 import { newId } from "@/lib/id";
 import { getDb, type StudyFlightDB } from "./db";
 import { getPreferences } from "./settings";
@@ -72,7 +73,7 @@ export async function issueBoardingPass(input: BoardingInput): Promise<FlightSes
     if (input.origin.id === input.destination.id) throw new Error("出発地と到着地は別の空港を選んでください");
   }
   const db = getDb();
-  return db.transaction("rw", db.sessions, db.legs, async () => {
+  const issued = await db.transaction("rw", db.sessions, db.legs, async () => {
     const open = await db.sessions.where("status").anyOf("active", "paused").first();
     if (open) throw new OpenFlightExistsError(open.id);
     // 未出発の搭乗券を取り消す（その搭乗券のために作った未飛行の区間も取り消す）
@@ -147,6 +148,13 @@ export async function issueBoardingPass(input: BoardingInput): Promise<FlightSes
     await db.sessions.add(session);
     return session;
   });
+  track("boarding_pass_issued", {
+    planned_minutes: issued.plannedSeconds / 60,
+    route_source: input.resumeLegId ? null : (input.routeSource ?? "estimated"),
+    resumed_leg: !!input.resumeLegId,
+    split: (issued.legStartSeconds ?? 0) + issued.plannedSeconds < (issued.legScheduledSeconds ?? 0),
+  });
+  return issued;
 }
 
 async function cancelLegIfUnflown(db: StudyFlightDB, legId: string): Promise<void> {
@@ -185,11 +193,13 @@ async function recomputeLeg(db: StudyFlightDB, legId: string): Promise<void> {
 type Transition = (session: FlightSession, nowMs: number) => TransitionResult;
 
 async function applyTransition(id: string, fn: Transition, nowMs: () => number = Date.now): Promise<FlightSession> {
-  return withLock(`session:${id}`, async () => {
+  let before: FlightSession["status"] | undefined;
+  const saved = await withLock(`session:${id}`, async () => {
     const db = getDb();
     return db.transaction("rw", [db.sessions, db.focusSegments, db.legs, db.trips], async () => {
       const current = await db.sessions.get(id);
       if (!current) throw new TransitionError("session not found");
+      before = current.status;
       const result = fn(current, nowMs());
       if (result.noop) return current;
       const { close, open } = result.segments;
@@ -208,6 +218,21 @@ async function applyTransition(id: string, fn: Transition, nowMs: () => number =
       return result.session;
     });
   });
+  // 保存が確定した後に記録する（分析はタイマーや保存に影響させない）
+  if (before !== saved.status) reportTransition(saved);
+  return saved;
+}
+
+function reportTransition(s: FlightSession) {
+  if (s.status === "active" && !s.accumulatedFocusSeconds) track("flight_started", { planned_minutes: s.plannedSeconds / 60, resumed_leg: (s.legStartSeconds ?? 0) > 0 });
+  else if (s.status === "completed")
+    track("flight_completed", {
+      completion_type: s.completionType ?? null,
+      focus_minutes: Math.round((s.actualFocusSeconds ?? 0) / 60),
+      planned_minutes: s.plannedSeconds / 60,
+      reached_destination: s.reachedDestination !== false,
+    });
+  else if (s.status === "abandoned") track("flight_abandoned", { reason: s.abandonmentReason ?? null, focus_minutes: Math.round((s.actualFocusSeconds ?? 0) / 60) });
 }
 
 export async function departFlight(id: string, nowMs?: () => number): Promise<FlightSession> {
