@@ -7,7 +7,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { GeoJSONSource, Map as MLMap, Marker } from "maplibre-gl";
 import { flightPositionAt, haversineKm, slerp, type LngLat } from "@/domain/geo";
-import type { FlightCamera, MapStyleId } from "@/domain/types";
+import type { FlightCamera, MapStyleId, RenderQuality } from "@/domain/types";
+import { deviceHints, resolveRenderSettings } from "@/lib/render-quality";
 import MapCanvas, { type MapLib } from "@/components/map/MapCanvas";
 import { flownLines, multiLine, routeLines } from "./routeGeometry";
 import { planeSvgMarkup } from "./PlaneGlyph";
@@ -24,6 +25,7 @@ export interface FlightMapViewProps {
   labels: boolean;
   camera: FlightCamera;
   reducedMotion: boolean;
+  quality: RenderQuality;
   onFail: (reason: string) => void;
   onTileTrouble?: () => void;
 }
@@ -58,7 +60,7 @@ function trailCoords(origin: LngLat, destination: LngLat, progress: number, tota
 }
 
 export default function FlightMapView(props: FlightMapViewProps) {
-  const { origin, destination, originCode, destinationCode, camera, styleId, labels, reducedMotion } = props;
+  const { origin, destination, originCode, destinationCode, camera, styleId, labels, reducedMotion, quality } = props;
   const mapRef = useRef<MLMap | null>(null);
   const planeRef = useRef<Marker | null>(null);
   const latest = useRef(props);
@@ -140,7 +142,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
     let lastProgress = -1;
     // 巡航高度の縮尺では機体は画面上で毎秒数ピクセルしか動かないため、カメラ更新は0.5秒ごとで十分。
     // 再描画を減らしてバッテリー消費と発熱を抑える
-    const interval = reducedMotion ? 1000 : 500;
+    const interval = reducedMotion ? 1000 : resolveRenderSettings(quality, deviceHints()).frameIntervalMs;
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick);
       const map = mapRef.current;
@@ -165,7 +167,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [origin, destination, totalKm, reducedMotion]);
+  }, [origin, destination, totalKm, reducedMotion, quality]);
 
   const start = flightPositionAt(origin, destination, props.getProgress());
   return (
@@ -173,6 +175,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
       styleId={styleId}
       labels={labels}
       terrain={styleId !== "globe"}
+      quality={quality}
       center={start.position}
       zoom={camera === "overview" ? 4 : altitudeZoom(props.getProgress(), props.plannedSeconds)}
       ariaLabel={`${originCode}から${destinationCode}へ飛行中の地図`}

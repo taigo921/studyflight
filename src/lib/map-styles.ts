@@ -1,6 +1,7 @@
 // 地図スタイルの組み立て。すべて APIキー不要の配信元を使う。
 //
-// - 衛星写真: Sentinel-2 cloudless (EOX IT Services) — 約10m解像度の雲なし合成画像
+// - 地球全体（低ズーム）: NASA Blue Marble Next Generation（GIBS）
+// - 衛星写真（中〜高ズーム）: Sentinel-2 cloudless (EOX IT Services) — 約10m解像度の雲なし合成画像（lib/imagery.ts で差し替え可）
 // - 3D 地形: Terrain Tiles (Mapzen / AWS Open Data, terrarium 形式)
 // - 標準・ダーク・地名ラベル: OpenFreeMap（OpenStreetMap / OpenMapTiles）
 // - 地球: 同梱の Natural Earth（オフラインでも表示できる）
@@ -9,13 +10,10 @@
 
 import type { LayerSpecification, SourceSpecification, StyleSpecification } from "maplibre-gl";
 import type { MapStyleId } from "@/domain/types";
+import { BLUE_MARBLE, satelliteProvider } from "./imagery";
 import { graticule, WORLD_LAND_URL } from "./world";
 
-const SATELLITE_TILES = process.env.NEXT_PUBLIC_SATELLITE_TILES ?? "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg";
-const SATELLITE_ATTRIBUTION =
-  process.env.NEXT_PUBLIC_SATELLITE_ATTRIBUTION ??
-  '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)';
-const SATELLITE_MAXZOOM = Number(process.env.NEXT_PUBLIC_SATELLITE_MAXZOOM ?? 14);
+const SATELLITE = satelliteProvider();
 const TERRAIN_TILES = process.env.NEXT_PUBLIC_TERRAIN_TILES ?? "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 const OFM_STYLES = process.env.NEXT_PUBLIC_VECTOR_STYLE_BASE ?? "https://tiles.openfreemap.org/styles/";
 
@@ -30,9 +28,9 @@ export function mapCredits(id: MapStyleId): { label: string; href: string }[] {
     { label: "© OpenMapTiles", href: "https://www.openmaptiles.org/" },
     { label: "© OpenStreetMap contributors", href: "https://www.openstreetmap.org/copyright" },
   ];
-  if (id === "globe") return [ne];
-  if (id === "satellite")
-    return [{ label: process.env.NEXT_PUBLIC_SATELLITE_CREDIT ?? "Sentinel-2 cloudless by EOX IT Services GmbH（Contains modified Copernicus Sentinel data 2024）", href: "https://s2maps.eu" }, terrain, ...osm, ne];
+  const marble = { label: BLUE_MARBLE.credit, href: BLUE_MARBLE.href };
+  if (id === "globe") return [marble, ne];
+  if (id === "satellite") return [marble, { label: `${SATELLITE.credit}（${SATELLITE.license}）`, href: SATELLITE.href }, terrain, ...osm, ne];
   return [...osm, terrain, ne];
 }
 
@@ -40,7 +38,7 @@ export const MAP_STYLE_LABELS: Record<MapStyleId, string> = {
   satellite: "衛星写真",
   standard: "標準",
   dark: "ダーク",
-  globe: "地球（オフライン可）",
+  globe: "地球（Blue Marble）",
 };
 
 const SKY = {
@@ -77,6 +75,19 @@ function fallbackLayers(): { sources: Record<string, SourceSpecification>; layer
     ],
   };
 }
+
+/** Blue Marble（地球全体の見た目）。オフライン時は下の同梱データが見える */
+const blueMarbleSource: SourceSpecification = {
+  type: "raster",
+  tiles: [BLUE_MARBLE.tiles],
+  tileSize: BLUE_MARBLE.tileSize,
+  maxzoom: BLUE_MARBLE.maxzoom,
+  attribution: BLUE_MARBLE.attribution,
+};
+const blueMarbleLayer: LayerSpecification = { id: "sf-bluemarble", type: "raster", source: "sf-bluemarble", paint: { "raster-fade-duration": 200 } };
+
+/** 低ズームは Blue Marble、ズーム 3.5〜5.5 で Sentinel-2 に切り替わる */
+export const SATELLITE_FADE: [number, number] = [3.5, 5.5];
 
 const vectorCache = new Map<string, Promise<StyleSpecification | null>>();
 
@@ -130,7 +141,7 @@ export async function buildMapStyle(id: MapStyleId, opts: { labels: boolean }): 
   } as Pick<StyleSpecification, "version" | "projection" | "sky">;
 
   if (id === "globe") {
-    return { style: { ...base, sources: fb.sources, layers: fb.layers }, terrain: false };
+    return { style: { ...base, sources: { ...fb.sources, "sf-bluemarble": blueMarbleSource }, layers: [...fb.layers, blueMarbleLayer] }, terrain: false };
   }
 
   if (id === "satellite") {
@@ -144,11 +155,23 @@ export async function buildMapStyle(id: MapStyleId, opts: { labels: boolean }): 
         ...(vector?.sprite && labels.length ? { sprite: vector.sprite } : {}),
         sources: {
           ...fb.sources,
-          "sf-satellite": { type: "raster", tiles: [SATELLITE_TILES], tileSize: 256, maxzoom: SATELLITE_MAXZOOM, attribution: SATELLITE_ATTRIBUTION },
+          "sf-bluemarble": blueMarbleSource,
+          "sf-satellite": { type: "raster", tiles: [SATELLITE.tiles], tileSize: SATELLITE.tileSize, maxzoom: SATELLITE.maxzoom, minzoom: 2, attribution: SATELLITE.attribution },
           [DEM_SOURCE_ID]: demSource,
           ...vectorSources,
         },
-        layers: [...fb.layers, { id: "sf-satellite", type: "raster", source: "sf-satellite", paint: { "raster-fade-duration": 200 } }, ...labels],
+        layers: [
+          ...fb.layers,
+          blueMarbleLayer,
+          {
+            id: "sf-satellite",
+            type: "raster",
+            source: "sf-satellite",
+            minzoom: SATELLITE_FADE[0],
+            paint: { "raster-fade-duration": 200, "raster-opacity": ["interpolate", ["linear"], ["zoom"], SATELLITE_FADE[0], 0, SATELLITE_FADE[1], 1] },
+          },
+          ...labels,
+        ],
       },
       terrain: true,
     };

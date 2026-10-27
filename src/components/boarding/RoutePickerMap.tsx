@@ -7,7 +7,7 @@ import MapCanvas, { type MapLib } from "@/components/map/MapCanvas";
 import { airportCodeOf } from "@/domain/airport-search";
 import { circlePolygon, type LngLat } from "@/domain/geo";
 import type { FlightCandidate } from "@/domain/route-search";
-import type { Airport, MapStyleId } from "@/domain/types";
+import type { Airport, MapStyleId, RenderQuality } from "@/domain/types";
 import { multiLine, routeLines } from "@/components/flight/routeGeometry";
 
 export interface RoutePickerMapProps {
@@ -20,6 +20,7 @@ export interface RoutePickerMapProps {
   labels: boolean;
   /** 地図の下側を覆うパネルの高さ（px） */
   bottomInset: number;
+  quality?: RenderQuality;
 }
 
 const pos = (a: Airport): LngLat => [a.lng, a.lat];
@@ -41,7 +42,7 @@ function originEl(code: string): HTMLElement {
   return el;
 }
 
-export default function RoutePickerMap({ origin, reachKm, candidates, selectedId, onSelect, styleId, labels, bottomInset }: RoutePickerMapProps) {
+export default function RoutePickerMap({ origin, reachKm, candidates, selectedId, onSelect, styleId, labels, bottomInset, quality }: RoutePickerMapProps) {
   const mapRef = useRef<MLMap | null>(null);
   const mlRef = useRef<MapLib | null>(null);
   const markers = useRef(new Map<string, { marker: Marker; el: HTMLButtonElement }>());
@@ -142,7 +143,6 @@ export default function RoutePickerMap({ origin, reachKm, candidates, selectedId
     fit(true);
   }, [origin, reachKm, fit, ringData]);
 
-
   // 選択状態の見た目と航路
   useEffect(() => {
     for (const [id, { el, marker }] of markers.current) paintMarker(el, marker, id === selectedId);
@@ -155,6 +155,7 @@ export default function RoutePickerMap({ origin, reachKm, candidates, selectedId
       styleId={styleId}
       labels={labels}
       terrain={false}
+      quality={quality}
       center={pos(origin)}
       zoom={5}
       ariaLabel={`現在地 ${airportCodeOf(origin)} からの行き先候補の地図`}

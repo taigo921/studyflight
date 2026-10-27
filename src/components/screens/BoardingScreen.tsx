@@ -198,6 +198,7 @@ function PassStep({ boarding }: { boarding: FlightSession }) {
             onSelect={() => {}}
             styleId={prefs.mapStyle}
             labels={prefs.mapLabels}
+            quality={prefs.renderQuality}
             bottomInset={470}
           />
         </ErrorBoundary>

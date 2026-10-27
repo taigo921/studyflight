@@ -152,6 +152,7 @@ export type MapMode = "auto" | "3d" | "2d";
 export type MapStyleId = "satellite" | "standard" | "dark" | "globe";
 /** フライト中のカメラ */
 export type FlightCamera = "follow" | "overview" | "window";
+export type RenderQuality = "auto" | "low" | "high";
 
 export interface Preferences {
   language: "ja";
@@ -163,6 +164,8 @@ export interface Preferences {
   mapStyle: MapStyleId;
   mapLabels: boolean;
   flightCamera: FlightCamera;
+  /** 地図の描画品質 */
+  renderQuality: RenderQuality;
   /** 行き先検索の許容幅（学習時間からの前後の分） */
   routeToleranceMinus: number;
   routeTolerancePlus: number;

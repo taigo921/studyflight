@@ -7,17 +7,20 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import type { Map as MLMap } from "maplibre-gl";
-import type { MapStyleId } from "@/domain/types";
+import type { MapStyleId, RenderQuality } from "@/domain/types";
 import { withBase } from "@/lib/base-path";
 import { buildMapStyle, DEM_SOURCE_ID } from "@/lib/map-styles";
+import { deviceHints, resolveRenderSettings } from "@/lib/render-quality";
 
 export type MapLib = typeof import("maplibre-gl");
 
 export interface MapCanvasProps {
   styleId: MapStyleId;
   labels: boolean;
-  /** 3D 地形（対応スタイルのみ） */
+  /** 3D 地形（対応スタイルのみ。省電力では無効） */
   terrain?: boolean;
+  /** 描画品質（生成時の解像度・地形・キャッシュ量） */
+  quality?: RenderQuality;
   center: [number, number];
   zoom: number;
   interactive?: boolean;
@@ -30,6 +33,10 @@ export interface MapCanvasProps {
   /** 衛星画像などのタイルが続けて取得できないとき */
   onTileTrouble?: () => void;
   className?: string;
+}
+
+function terrainAllowed(p: Pick<MapCanvasProps, "terrain" | "quality">): boolean {
+  return !!p.terrain && resolveRenderSettings(p.quality ?? "auto", deviceHints()).terrain;
 }
 
 export default function MapCanvas(props: MapCanvasProps) {
@@ -53,8 +60,12 @@ export default function MapCanvas(props: MapCanvasProps) {
         const p = latest.current;
         const { style, terrain } = await buildMapStyle(p.styleId, { labels: p.labels });
         if (disposed || !container.current) return;
+        const rs = resolveRenderSettings(p.quality ?? "auto", deviceHints());
         const map = new ml.Map({
           container: container.current,
+          pixelRatio: rs.pixelRatio,
+          canvasContextAttributes: { antialias: rs.antialias, powerPreference: rs.pixelRatio > 1 ? "default" : "low-power" },
+          maxTileCacheSize: rs.maxTileCacheSize,
           style,
           center: p.center,
           zoom: p.zoom,
@@ -95,7 +106,7 @@ export default function MapCanvas(props: MapCanvasProps) {
         map.on("style.load", () => {
           ready = true;
           const cur = latest.current;
-          applyTerrain(!!cur.terrain && (map.getStyle().sources?.[DEM_SOURCE_ID] !== undefined));
+          applyTerrain(terrainAllowed(cur) && map.getStyle().sources?.[DEM_SOURCE_ID] !== undefined);
           cur.onStyleLoaded?.(map, ml);
         });
         void terrain;
@@ -108,7 +119,11 @@ export default function MapCanvas(props: MapCanvasProps) {
       disposed = true;
       removeLost();
       try {
-        mapRef.current?.remove();
+        const map = mapRef.current;
+        // iOS Safari は WebGL コンテキストの解放が遅れるため、明示的に手放す
+        const gl = map?.getCanvas().getContext("webgl2") ?? map?.getCanvas().getContext("webgl");
+        map?.remove();
+        gl?.getExtension("WEBGL_lose_context")?.loseContext();
       } catch {
         /* noop */
       }
@@ -117,7 +132,8 @@ export default function MapCanvas(props: MapCanvasProps) {
   }, []);
 
   // スタイル切り替え
-  const { styleId, labels, terrain } = props;
+  const { styleId, labels } = props;
+  const terrain = terrainAllowed(props);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {

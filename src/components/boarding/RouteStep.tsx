@@ -91,7 +91,7 @@ function ResumeLeg(props: Props & { leg: FlightLeg }) {
     <main className="relative h-dvh overflow-hidden bg-night">
       {webgl && o && d && (
         <ErrorBoundary fallback={null}>
-          <RoutePickerMap origin={o} reachKm={0} candidates={[{ airport: d }]} selectedId={d.id} onSelect={() => {}} styleId={prefs.mapStyle} labels={prefs.mapLabels} bottomInset={420} />
+          <RoutePickerMap origin={o} reachKm={0} candidates={[{ airport: d }]} selectedId={d.id} onSelect={() => {}} styleId={prefs.mapStyle} labels={prefs.mapLabels} quality={prefs.renderQuality} bottomInset={420} />
         </ErrorBoundary>
       )}
       <header className="px-safe pt-safe absolute inset-x-0 top-0 z-10 flex items-center gap-3">
@@ -254,6 +254,7 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
             }}
             styleId={prefs.mapStyle}
             labels={prefs.mapLabels}
+            quality={prefs.renderQuality}
             bottomInset={panelH}
           />
         </ErrorBoundary>

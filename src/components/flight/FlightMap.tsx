@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { LngLat } from "@/domain/geo";
-import type { FlightCamera, MapMode, MapStyleId } from "@/domain/types";
+import type { FlightCamera, MapMode, MapStyleId, RenderQuality } from "@/domain/types";
 import { isWebGLAvailable } from "@/lib/world";
 import { RouteMap2D } from "./RouteMap2D";
 
@@ -26,6 +26,7 @@ export interface FlightMapProps {
   labels: boolean;
   camera: FlightCamera;
   reducedMotion: boolean;
+  quality: RenderQuality;
   onTileTrouble?: () => void;
 }
 

@@ -12,7 +12,8 @@ import { Segmented } from "@/components/ui/Segmented";
 import { Stepper } from "@/components/ui/Stepper";
 import { SUGGESTED_AIRPORT_IDS } from "@/data/core-airports";
 import { updateGoals, updatePreferences } from "@/data/settings";
-import type { Airport, MapMode, MapStyleId } from "@/domain/types";
+import type { Airport, MapMode, MapStyleId, RenderQuality } from "@/domain/types";
+import { RENDER_QUALITY_LABELS } from "@/lib/render-quality";
 import { MAP_STYLE_LABELS } from "@/lib/map-styles";
 import { deviceTimeZone } from "@/domain/zoned";
 import { useGoals, usePreferences } from "@/features/data-hooks";
@@ -149,6 +150,16 @@ export function SettingsScreen() {
               ]}
             />
             <span className="text-xs text-mute">3D が使えない端末では自動で 2D の航路図に切り替わります。</span>
+          </div>
+          <div className="flex flex-col gap-2 text-sm">
+            <span className="font-semibold">描画品質</span>
+            <Segmented<RenderQuality>
+              label="描画品質"
+              value={prefs.renderQuality}
+              onChange={(v) => updatePreferences({ renderQuality: v })}
+              options={(["low", "auto", "high"] as const).map((v) => ({ value: v, label: RENDER_QUALITY_LABELS[v] }))}
+            />
+            <span className="text-xs text-mute">省電力: 解像度を下げ、3D 地形を使わず、更新を1秒ごとにします。自動: 省データ設定やメモリの少ない端末では省電力になります。次に地図を開いたときから反映されます。</span>
           </div>
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-semibold">地図の見た目</span>

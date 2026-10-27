@@ -139,3 +139,19 @@ export function circlePolygon(center: LngLat, km: number, steps = 96): LngLat[] 
   for (let i = 0; i <= steps; i++) pts.push(destinationPoint(center, (360 * i) / steps, km));
   return unwrapLongitudes(pts);
 }
+
+/** 最寄りの地点（線形探索。数千件なら十分速い）。 */
+export function nearest<T extends { lng: number; lat: number }>(p: LngLat, items: readonly T[]): { item: T; km: number } | null {
+  let best: T | null = null;
+  let bestKm = Infinity;
+  for (const it of items) {
+    // 緯度差だけで明らかに遠いものは飛ばす
+    if (Math.abs(it.lat - p[1]) * 111 > bestKm) continue;
+    const km = haversineKm(p, [it.lng, it.lat]);
+    if (km < bestKm) {
+      bestKm = km;
+      best = it;
+    }
+  }
+  return best ? { item: best, km: bestKm } : null;
+}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlightMap } from "@/components/flight/FlightMap";
 import { IconClose, IconFollow, IconLanding, IconLayers, IconMute, IconPause, IconPlay, IconRoute, IconSound, IconWindow } from "@/components/icons/Icons";
 import { MapStyleSheet } from "@/components/flight/MapStyleSheet";
@@ -13,8 +13,9 @@ import { Sheet } from "@/components/ui/Sheet";
 import { SubjectBadge } from "@/components/ui/SubjectBadge";
 import { updatePreferences } from "@/data/settings";
 import { abandonFlight, completeIfDue, landFlightEarly, pauseFlight, resumeFlight } from "@/data/sessions";
-import { formatClock, percent } from "@/domain/format";
-import { flightPositionAt, type LngLat } from "@/domain/geo";
+import { airportCodeOf } from "@/domain/airport-search";
+import { formatClock, formatLatLng, percent } from "@/domain/format";
+import { flightPositionAt, nearest, type LngLat } from "@/domain/geo";
 import { earlyLandingOutcome, elapsedSeconds, hasClockAnomaly, legProgressOf, remainingSeconds } from "@/domain/session";
 import type { FlightCamera, SoundMode } from "@/domain/types";
 import { usePreferences, useSession } from "@/features/data-hooks";
@@ -24,12 +25,15 @@ import { useWakeLock } from "@/features/useWakeLock";
 import { AmbientSound, SOUND_LABELS } from "@/lib/sound";
 import { confirmDialog, toast } from "@/store/ui";
 
+const clockFmt = new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit" });
+const clockTime = (ms: number) => clockFmt.format(ms);
+
 export function FlightScreen() {
   const id = useSearchParams().get("id");
   const router = useRouter();
   const session = useSession(id);
   const prefs = usePreferences();
-  const { byId } = useAirports();
+  const { byId, airports } = useAirports();
   const now = useNow(1000);
   const [busy, setBusy] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
@@ -52,6 +56,21 @@ export function FlightScreen() {
   }, []);
 
   const isActive = session?.status === "active";
+
+  // 現在位置と最寄りの空港（0.1度単位で再計算）
+  const here = useMemo(() => {
+    if (!session) return null;
+    const o = byId.get(session.originAirportId);
+    const d = byId.get(session.destinationAirportId);
+    if (!o || !d) return null;
+    return flightPositionAt([o.lng, o.lat], [d.lng, d.lat], legProgressOf(session, now)).position;
+  }, [session, byId, now]);
+  const hereKey = here ? `${here[0].toFixed(1)},${here[1].toFixed(1)}` : "";
+  const near = useMemo(() => {
+    if (!hereKey) return null;
+    const [lng, lat] = hereKey.split(",").map(Number);
+    return nearest([lng, lat], airports);
+  }, [hereKey, airports]);
   useWakeLock(isActive);
 
   useEffect(() => () => sound.current?.dispose(), []);
@@ -201,8 +220,9 @@ export function FlightScreen() {
           destinationCode={session.destinationCode}
           progress={progress}
           getProgress={getProgress}
-          plannedSeconds={session.plannedSeconds}
+          plannedSeconds={session.legScheduledSeconds ?? session.plannedSeconds}
           mapMode={prefs.mapMode}
+          quality={prefs.renderQuality}
           styleId={prefs.mapStyle}
           labels={prefs.mapLabels}
           camera={prefs.flightCamera}
@@ -242,7 +262,7 @@ export function FlightScreen() {
       </header>
 
       {/* 左: 停止・サウンド */}
-      <div className="absolute top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3" style={{ left: "max(var(--safe-left), 14px)" }}>
+      <div className="absolute top-[40%] z-10 flex -translate-y-1/2 flex-col gap-3 short:top-1/2" style={{ left: "max(var(--safe-left), 14px)" }}>
         {paused ? (
           <button type="button" className={`${glass} !bg-gold !text-night`} disabled={busy} onClick={() => run(() => resumeFlight(session.id), "再開できませんでした")} aria-label="再開">
             <IconPlay size={20} />
@@ -261,7 +281,7 @@ export function FlightScreen() {
       <div
         role="radiogroup"
         aria-label="カメラ"
-        className="absolute top-1/2 z-10 flex -translate-y-1/2 flex-col gap-1 rounded-full border border-white/15 bg-night/55 p-1 shadow-lg backdrop-blur-md"
+        className="absolute top-[40%] z-10 flex -translate-y-1/2 flex-col gap-1 rounded-full short:top-1/2 border border-white/15 bg-night/55 p-1 shadow-lg backdrop-blur-md"
         style={{ right: "max(var(--safe-right), 14px)" }}
       >
         {cameraOptions.map((c) => (
@@ -280,7 +300,7 @@ export function FlightScreen() {
       </div>
 
       {/* 下部: 残り時間・残り距離・着陸 */}
-      <section className="px-safe pb-safe absolute inset-x-0 bottom-0 z-10" aria-label="フライト情報と操作">
+      <section className="px-safe pb-safe pointer-events-none absolute inset-x-0 bottom-0 z-10 [&_button]:pointer-events-auto" aria-label="フライト情報と操作">
         <div className="mx-auto flex max-w-xl flex-col gap-3 short:max-w-3xl short:gap-2">
           {anomaly && (
             <p className="rounded-2xl border border-gold/40 bg-night/80 px-3 py-2 text-xs text-gold" role="alert">
@@ -307,10 +327,21 @@ export function FlightScreen() {
               </p>
             </div>
           </div>
+          <div className="tabular flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-mute" data-testid="flight-eta">
+            <span>
+              {paused ? "一時停止中は到着時刻が後ろにずれます" : `${partial ? "今回の終了" : "到着予定"} ${clockTime(now + remaining * 1000)}`}
+            </span>
+            {pos && (
+              <span className="min-w-0 truncate">
+                現在地 {formatLatLng(pos.position[0], pos.position[1], 1)}
+                {near && near.km < 400 ? ` · ${near.item.nameJa ?? near.item.municipality ?? near.item.name}（${airportCodeOf(near.item)}）${near.km < 15 ? "付近" : `から${Math.round(near.km)}km`}` : ""}
+              </span>
+            )}
+          </div>
           <ProgressBar value={progress} color="var(--color-gold)" label="飛行の進捗" />
           {partial && (
             <p className="text-xs text-mute" data-testid="partial-note">
-              今回の学習で {session.destinationCode} の手前まで進みます。{session.destinationCode} まで残り約 {legRemainingMin} 分（次回以降に続きから飛行）
+              今回は {session.destinationCode} の手前まで（到着まで残り約{legRemainingMin}分・次回は続きから）
             </p>
           )}
           <div className="flex items-center gap-3 short:justify-center">

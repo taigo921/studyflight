@@ -24,6 +24,7 @@ export function defaultPreferences(): PreferencesRow {
     mapStyle: "satellite",
     mapLabels: true,
     flightCamera: "follow",
+    renderQuality: "auto",
     routeToleranceMinus: 10,
     routeTolerancePlus: 10,
     includeEstimatedRoutes: false,

@@ -120,6 +120,7 @@ const PreferencesSchema = z
     mapStyle: z.enum(["satellite", "standard", "dark", "globe"]),
     mapLabels: z.boolean(),
     flightCamera: z.enum(["follow", "overview", "window"]),
+    renderQuality: z.enum(["auto", "low", "high"]),
     routeToleranceMinus: z.number().int().min(0).max(240),
     routeTolerancePlus: z.number().int().min(0).max(600),
     includeEstimatedRoutes: z.boolean(),

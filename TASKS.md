@@ -86,6 +86,15 @@
 - [x] E2E: 旅がつながる（分割→再開→到着）、途中終了→リロード→同じ地点から再開
 - [ ] 実際の時刻表に基づく予定時間（有料 API + サーバーが必要。要承認）
 
+## Phase 3.8 — 統合開発指示書 Phase3（地球儀・衛星画像・描画品質）
+
+- [x] 低ズームは NASA Blue Marble（GIBS WMTS）、ズーム 3.5〜5.5 で Sentinel-2 cloudless にクロスフェード
+- [x] 衛星画像の既定を Sentinel-2 cloudless 2016（CC BY 4.0）に変更。配信元は `lib/imagery.ts` と環境変数で差し替え
+- [x] EOxCloudless 2016 と Mapbox Satellite の比較（docs/MAP_PROVIDERS.md）。商用時は EOX への確認が必要と明記
+- [x] 描画品質の設定（省電力 / 自動 / 高画質）: 解像度・3D 地形・更新間隔・タイルキャッシュ。地図破棄時に WebGL コンテキストを解放
+- [x] フライト画面に到着予定時刻（分割時は今回の終了時刻）と現在位置（緯度経度・最寄り空港）
+- [ ] 実機で Blue Marble / Sentinel 2016 の表示確認（この環境からは配信元に接続できない）
+
 ## Phase 4 — PWA・公開品質
 
 - [x] Manifest、アプリアイコン、ホーム画面追加案内
