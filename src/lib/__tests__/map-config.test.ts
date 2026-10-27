@@ -29,8 +29,9 @@ describe("satelliteProvider", () => {
 });
 
 describe("resolveRenderSettings", () => {
-  it("省電力は解像度1倍・地形なし・1秒更新", () => {
-    expect(resolveRenderSettings("low", { devicePixelRatio: 3 })).toMatchObject({ pixelRatio: 1, terrain: false, frameIntervalMs: 1000 });
+  it("省電力は解像度1倍・地形なし・0.25秒更新、標準は約30fps", () => {
+    expect(resolveRenderSettings("low", { devicePixelRatio: 3 })).toMatchObject({ pixelRatio: 1, terrain: false, frameIntervalMs: 250 });
+    expect(resolveRenderSettings("auto", { devicePixelRatio: 3 }).frameIntervalMs).toBe(33);
   });
   it("自動は最大2倍、省データ設定や低メモリでは省電力", () => {
     expect(resolveRenderSettings("auto", { devicePixelRatio: 3 }).pixelRatio).toBe(2);

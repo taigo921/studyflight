@@ -165,7 +165,7 @@ export function SettingsScreen() {
               onChange={(v) => updatePreferences({ renderQuality: v })}
               options={(["low", "auto", "high"] as const).map((v) => ({ value: v, label: RENDER_QUALITY_LABELS[v] }))}
             />
-            <span className="text-xs text-mute">省電力: 解像度を下げ、3D 地形を使わず、更新を1秒ごとにします。自動: 省データ設定やメモリの少ない端末では省電力になります。次に地図を開いたときから反映されます。</span>
+            <span className="text-xs text-mute">省電力: 解像度を下げ、3D 地形を使わず、機体の動きを0.25秒ごとに更新します。標準・高画質は滑らかに動きます。自動: 省データ設定やメモリの少ない端末では省電力になります。次に地図を開いたときから反映されます。</span>
           </div>
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-semibold">地図の見た目</span>

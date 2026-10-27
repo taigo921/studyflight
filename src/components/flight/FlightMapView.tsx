@@ -140,13 +140,13 @@ export default function FlightMapView(props: FlightMapViewProps) {
     let lastFrame = 0;
     let lastData = 0;
     let lastProgress = -1;
-    // 巡航高度の縮尺では機体は画面上で毎秒数ピクセルしか動かないため、カメラ更新は0.5秒ごとで十分。
-    // 再描画を減らしてバッテリー消費と発熱を抑える
+    // 離陸・着陸前後は低高度（大きな縮尺）で地面が速く流れるため、カメラは滑らかに毎フレーム近く更新する。
+    // 標準は約30fps、省電力は0.25秒ごと。航跡の線の更新は0.5秒ごとに間引く
     const interval = reducedMotion ? 1000 : resolveRenderSettings(quality, deviceHints()).frameIntervalMs;
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick);
       const map = mapRef.current;
-      if (!map || document.visibilityState !== "visible" || t - lastFrame < interval) return;
+      if (!map || document.visibilityState !== "visible" || t - lastFrame < interval - 4) return;
       lastFrame = t;
       const cur = latest.current;
       const p = cur.getProgress();

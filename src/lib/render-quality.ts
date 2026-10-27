@@ -6,7 +6,7 @@ export interface RenderSettings {
   pixelRatio: number;
   /** 3D 地形を使うか */
   terrain: boolean;
-  /** フライト中にカメラを更新する間隔（ミリ秒） */
+  /** フライト中にカメラを更新する間隔（ミリ秒）。0 = 毎フレーム、33 ≒ 30fps */
   frameIntervalMs: number;
   antialias: boolean;
   /** 保持するタイル数の上限（null = MapLibre の自動設定） */
@@ -30,9 +30,9 @@ export function resolveRenderSettings(quality: RenderQuality, hints: DeviceHints
   const dpr = Math.max(1, hints.devicePixelRatio || 1);
   const constrained = !!hints.saveData || (hints.deviceMemory !== undefined && hints.deviceMemory < 4);
   const effective = quality === "auto" ? (constrained ? "low" : "auto") : quality;
-  if (effective === "low") return { pixelRatio: 1, terrain: false, frameIntervalMs: 1000, antialias: false, maxTileCacheSize: 60 };
-  if (effective === "high") return { pixelRatio: Math.min(dpr, 3), terrain: true, frameIntervalMs: 250, antialias: true, maxTileCacheSize: null };
-  return { pixelRatio: Math.min(dpr, 2), terrain: true, frameIntervalMs: 500, antialias: false, maxTileCacheSize: null };
+  if (effective === "low") return { pixelRatio: 1, terrain: false, frameIntervalMs: 250, antialias: false, maxTileCacheSize: 60 };
+  if (effective === "high") return { pixelRatio: Math.min(dpr, 3), terrain: true, frameIntervalMs: 0, antialias: true, maxTileCacheSize: null };
+  return { pixelRatio: Math.min(dpr, 2), terrain: true, frameIntervalMs: 33, antialias: false, maxTileCacheSize: null };
 }
 
 export function deviceHints(): DeviceHints {
