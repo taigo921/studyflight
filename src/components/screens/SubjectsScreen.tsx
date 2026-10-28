@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Sheet } from "@/components/ui/Sheet";
-import { createSubject, createTask, deleteTask, setSubjectArchived, setTaskDone, SUBJECT_COLORS, updateSubject } from "@/data/subjects";
+import { addSubjectSet, createSubject, createTask, DENTAL_SUBJECTS, deleteTask, setSubjectArchived, setTaskDone, SUBJECT_COLORS, updateSubject } from "@/data/subjects";
 import type { Subject } from "@/domain/types";
 import { useSubjects, useTasks } from "@/features/data-hooks";
 import { confirmDialog, toast } from "@/store/ui";
@@ -104,6 +104,17 @@ export function SubjectsScreen() {
   const [editing, setEditing] = useState<Subject | "new" | null>(null);
   const active = all?.filter((s) => !s.archivedAt) ?? [];
   const archived = all?.filter((s) => s.archivedAt) ?? [];
+  const activeNames = new Set(active.map((s) => s.name));
+  const missingDental = DENTAL_SUBJECTS.filter((n) => !activeNames.has(n));
+
+  const addDental = async () => {
+    try {
+      const n = await addSubjectSet(DENTAL_SUBJECTS);
+      toast(`歯学の科目を${n}件追加しました`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "追加できませんでした", "error");
+    }
+  };
 
   const archive = async (s: Subject) => {
     const ok = await confirmDialog({
@@ -126,6 +137,20 @@ export function SubjectsScreen() {
         }
       />
       <div className="flex flex-col gap-5">
+        {all && missingDental.length > 0 && (
+          <Card className="flex flex-col gap-3">
+            <div>
+              <p className="font-semibold">歯学の科目をまとめて追加</p>
+              <p className="mt-1 text-xs text-mute">
+                {missingDental.slice(0, 6).join("・")}
+                {missingDental.length > 6 ? ` ほか${missingDental.length - 6}科目` : ""}。すでにある科目は追加しません。
+              </p>
+            </div>
+            <Button variant="secondary" onClick={addDental}>
+              <IconPlus size={20} /> {missingDental.length}科目を追加
+            </Button>
+          </Card>
+        )}
         <Card className="p-2">
           <ul className="divide-y divide-line/50">
             {active.map((s) => (

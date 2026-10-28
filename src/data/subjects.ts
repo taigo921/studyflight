@@ -8,6 +8,30 @@ export const SUBJECT_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55
 export const SAMPLE_SUBJECTS = ["生理学", "生化学", "微生物学", "歯科保存学", "口腔外科学", "歯科補綴学", "その他"];
 export const FREE_STUDY_NAME = "自由学習";
 
+/** 歯学部の科目セット（国家試験の科目区分にそろえたもの） */
+export const DENTAL_SUBJECTS = [
+  "インプラント",
+  "衛生学",
+  "冠橋義歯学",
+  "口腔解剖学／組織学",
+  "口腔外科学",
+  "口腔生化学",
+  "口腔生理学",
+  "口腔微生物学",
+  "口腔病理学",
+  "高齢者",
+  "歯科矯正学",
+  "歯科放射線学",
+  "歯科麻酔学",
+  "歯科薬理学",
+  "歯科理工学／材料学",
+  "歯周病学",
+  "歯内療法学",
+  "小児歯科学",
+  "全部床義歯学",
+  "保存修復学",
+] as const;
+
 const now = () => new Date().toISOString();
 
 export function normalizeSubjectName(name: string): string {
@@ -58,6 +82,35 @@ export async function seedSubjects(names: string[]): Promise<void> {
       await db.subjects.add({ id: newId(), name: clean, color: SUBJECT_COLORS[i++ % SUBJECT_COLORS.length], archivedAt: null, createdAt: t, updatedAt: t });
       existing.add(clean);
     }
+  });
+}
+
+/** 科目セットを追加する。同名の科目があれば追加せず、アーカイブ済みなら戻す。追加・復元した数を返す。 */
+export async function addSubjectSet(names: readonly string[]): Promise<number> {
+  const db = getDb();
+  return db.transaction("rw", db.subjects, async () => {
+    const all = await db.subjects.toArray();
+    const byName = new Map(all.map((s) => [s.name, s]));
+    let i = all.length;
+    let changed = 0;
+    for (const name of names) {
+      const clean = normalizeSubjectName(name);
+      if (!clean) continue;
+      const t = now();
+      const found = byName.get(clean);
+      if (found) {
+        if (found.archivedAt) {
+          await db.subjects.update(found.id, { archivedAt: null, updatedAt: t });
+          changed++;
+        }
+        continue;
+      }
+      const subject: Subject = { id: newId(), name: clean, color: SUBJECT_COLORS[i++ % SUBJECT_COLORS.length], archivedAt: null, createdAt: t, updatedAt: t };
+      await db.subjects.add(subject);
+      byName.set(clean, subject);
+      changed++;
+    }
+    return changed;
   });
 }
 

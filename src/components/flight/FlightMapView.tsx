@@ -4,7 +4,7 @@
 // カメラ: follow = 機体の後方上空から追従 / overview = 航路全体 / window = 客室の窓から横を見下ろす。
 // 離陸直後と着陸前は高度（ズーム）が変わり、地上に近づく。
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MLMap, Marker } from "maplibre-gl";
 import { flightPositionAt, haversineKm, slerp, type LngLat } from "@/domain/geo";
 import type { FlightCamera, MapStyleId, RenderQuality } from "@/domain/types";
@@ -18,7 +18,9 @@ import { withBase } from "@/lib/base-path";
 
 const MODEL_URL = withBase("/models/studyflight-787-9.glb");
 /** 画面上の機体の長さ（px） */
-const PLANE_PX = { follow: 130, overview: 46 } as const;
+const PLANE_PX = { follow: 130, free: 90, overview: 46 } as const;
+/** 「機体に戻る」でカメラが戻るまでの時間（ms） */
+const RETURN_MS = 700;
 
 export interface FlightMapViewProps {
   origin: LngLat;
@@ -82,6 +84,19 @@ export default function FlightMapView(props: FlightMapViewProps) {
   const planeRef = useRef<Marker | null>(null);
   const planeArt = useRef<PlaneMarker | null>(null);
   const plane3d = useRef<Plane3D | null>(null);
+  // 追尾カメラ中に指で地図を動かしたら、追尾を止めて自由に見られるようにする
+  const [freeLook, setFreeLook] = useState(false);
+  // カメラを切り替えたら自由視点は解除（描画中に前回の値と比べて直す）
+  const [prevCamera, setPrevCamera] = useState(camera);
+  if (camera !== prevCamera) {
+    setPrevCamera(camera);
+    setFreeLook(false);
+  }
+  const freeRef = useRef(false);
+  const resumeAt = useRef(0);
+  useEffect(() => {
+    freeRef.current = freeLook;
+  }, [freeLook]);
   const latest = useRef(props);
   useEffect(() => {
     latest.current = props;
@@ -151,6 +166,15 @@ export default function FlightMapView(props: FlightMapViewProps) {
       mapRef.current = map;
       // 地形の高さにカメラの中心を毎フレーム合わせると、山の上で画面が上下に揺れる。高さはこちらで滑らかにして渡す
       map.setCenterClampedToGround(false);
+      applyGestures(map, latest.current.camera);
+      // 追尾中は毎フレームのカメラ移動が指の操作を打ち消すので、触れた瞬間に追尾をやめる
+      const startFree = () => {
+        if (latest.current.camera !== "follow" || freeRef.current) return;
+        freeRef.current = true;
+        setFreeLook(true);
+      };
+      const box = map.getCanvasContainer();
+      for (const type of ["pointerdown", "touchstart", "wheel"] as const) box.addEventListener(type, startFree, { passive: true, capture: true });
       new ml.Marker({ element: airportMarkerEl(originCode, "origin"), anchor: "bottom" }).setLngLat(origin).addTo(map);
       new ml.Marker({ element: airportMarkerEl(destinationCode, "destination"), anchor: "bottom" }).setLngLat(destination).addTo(map);
       const cur = latest.current;
@@ -171,11 +195,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const free = camera === "overview";
-    for (const h of [map.dragPan, map.scrollZoom, map.doubleClickZoom, map.touchZoomRotate, map.boxZoom, map.keyboard]) {
-      if (free) h.enable();
-      else h.disable();
-    }
+    applyGestures(map, camera);
     planeRef.current?.getElement().style.setProperty("display", camera === "window" ? "none" : "block");
     planeArt.current?.setSize(camera === "overview" ? 44 : 100);
     if (camera === "overview") {
@@ -226,8 +246,9 @@ export default function FlightMapView(props: FlightMapViewProps) {
       const alt = altitudeRatio(p, cur.plannedSeconds);
       // 3D 機体: 画面上でほぼ一定の大きさに見えるよう拡大し、高さも同じ比率で誇張する
       const model = plane3d.current;
-      const zoom = cur.camera === "overview" ? map.getZoom() : altitudeZoom(p, cur.plannedSeconds);
-      const scale = displayScale(pos.position[1], zoom, cur.camera === "overview" ? PLANE_PX.overview : PLANE_PX.follow);
+      const following = cur.camera === "follow" && !freeRef.current && t >= resumeAt.current;
+      const zoom = following || cur.camera === "window" ? altitudeZoom(p, cur.plannedSeconds) : map.getZoom();
+      const scale = displayScale(pos.position[1], zoom, cur.camera === "overview" ? PLANE_PX.overview : cur.camera === "follow" && !following ? PLANE_PX.free : PLANE_PX.follow);
       // 地図の中心は地面に置くので、機体は少しだけ浮かせ、高度感は影の離れ具合で出す
       // （カメラ中心の標高は地形なしの地図では描画に反映されないため、機体の高さには使わない）
       const planeLength = MODEL_LENGTH_M * scale;
@@ -237,7 +258,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
       const slope = altitudeRatio(Math.min(1, p + 0.002), cur.plannedSeconds) - altitudeRatio(Math.max(0, p - 0.002), cur.plannedSeconds);
       noseUp += ((slope > 1e-6 ? 8 : slope < -1e-6 ? -3 : 0) - noseUp) * 0.05;
       const elevation = ground;
-      if (cur.camera === "follow") {
+      if (following) {
         map.jumpTo({ center: pos.position, elevation, zoom, bearing: pos.bearing, pitch: 62, padding: { top: 0, bottom: Math.round(h * 0.3), left: 0, right: 0 } });
       } else if (cur.camera === "window") {
         map.jumpTo({ center: pos.position, elevation, zoom: altitudeZoom(p, cur.plannedSeconds) + 1.4, bearing: (pos.bearing + 90) % 360, pitch: 74, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
@@ -262,8 +283,39 @@ export default function FlightMapView(props: FlightMapViewProps) {
     return () => cancelAnimationFrame(raf);
   }, [origin, destination, totalKm, reducedMotion, quality]);
 
+  // 「機体に戻る」: 追尾の位置へ滑らかに戻してから、毎フレームの追尾を再開する
+  const backToPlane = () => {
+    const map = mapRef.current;
+    const cur = latest.current;
+    freeRef.current = false;
+    setFreeLook(false);
+    if (!map) return;
+    const p = cur.getProgress();
+    const pos = flightPositionAt(origin, destination, p);
+    const h = map.getContainer().clientHeight;
+    resumeAt.current = performance.now() + (reducedMotion ? 0 : RETURN_MS);
+    map.easeTo({
+      center: pos.position,
+      zoom: altitudeZoom(p, cur.plannedSeconds),
+      bearing: pos.bearing,
+      pitch: 62,
+      padding: { top: 0, bottom: Math.round(h * 0.3), left: 0, right: 0 },
+      duration: reducedMotion ? 0 : RETURN_MS,
+    });
+  };
+
   const start = flightPositionAt(origin, destination, props.getProgress());
   return (
+    <>
+    {freeLook && camera === "follow" && (
+      <button
+        type="button"
+        onClick={backToPlane}
+        className="absolute top-[calc(var(--safe-top)+5.5rem)] left-1/2 z-20 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-gold/50 bg-night/80 px-5 text-sm font-semibold text-gold shadow-lg backdrop-blur-md"
+      >
+        <span aria-hidden>✈︎</span> 機体に戻る
+      </button>
+    )}
     <MapCanvas
       styleId={styleId}
       labels={labels}
@@ -277,5 +329,16 @@ export default function FlightMapView(props: FlightMapViewProps) {
       onFail={props.onFail}
       onTileTrouble={props.onTileTrouble}
     />
+    </>
   );
+}
+
+/** 地図の指操作。追尾・航路全体では移動・拡大・回転・傾きを許し、機窓では固定する。 */
+function applyGestures(map: MLMap, camera: FlightCamera) {
+  const on = camera !== "window";
+  for (const h of [map.dragPan, map.scrollZoom, map.doubleClickZoom, map.touchZoomRotate, map.touchPitch, map.dragRotate, map.boxZoom, map.keyboard]) {
+    if (on) h.enable();
+    else h.disable();
+  }
+  if (on) map.touchZoomRotate.enableRotation();
 }
