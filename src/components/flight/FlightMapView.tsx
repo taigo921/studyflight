@@ -11,7 +11,7 @@ import type { FlightCamera, MapStyleId, RenderQuality } from "@/domain/types";
 import { deviceHints, resolveRenderSettings } from "@/lib/render-quality";
 import MapCanvas, { type MapLib } from "@/components/map/MapCanvas";
 import { flownLines, multiLine, routeLines } from "./routeGeometry";
-import { planeSvgMarkup } from "./PlaneGlyph";
+import { createPlaneMarker, type PlaneMarker } from "./planeMarker";
 
 export interface FlightMapViewProps {
   origin: LngLat;
@@ -33,6 +33,11 @@ export interface FlightMapViewProps {
 const CRUISE_ZOOM = 9.6;
 const GROUND_ZOOM = 12.8;
 const TRAIL_KM = 22;
+
+/** 高度の割合（0 = 地上、1 = 巡航）。影の離れ具合に使う。 */
+export function altitudeRatio(progress: number, plannedSeconds: number): number {
+  return (GROUND_ZOOM - altitudeZoom(progress, plannedSeconds)) / (GROUND_ZOOM - CRUISE_ZOOM);
+}
 
 /** 離陸・着陸の前後でズーム（高度）を変える。 */
 export function altitudeZoom(progress: number, plannedSeconds: number): number {
@@ -63,6 +68,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
   const { origin, destination, originCode, destinationCode, camera, styleId, labels, reducedMotion, quality } = props;
   const mapRef = useRef<MLMap | null>(null);
   const planeRef = useRef<Marker | null>(null);
+  const planeArt = useRef<PlaneMarker | null>(null);
   const latest = useRef(props);
   useEffect(() => {
     latest.current = props;
@@ -100,11 +106,14 @@ export default function FlightMapView(props: FlightMapViewProps) {
       mapRef.current = map;
       new ml.Marker({ element: airportMarkerEl(originCode, "origin"), anchor: "bottom" }).setLngLat(origin).addTo(map);
       new ml.Marker({ element: airportMarkerEl(destinationCode, "destination"), anchor: "bottom" }).setLngLat(destination).addTo(map);
-      const el = document.createElement("div");
-      el.innerHTML = planeSvgMarkup(44);
-      el.setAttribute("aria-hidden", "true");
-      const pos = flightPositionAt(origin, destination, latest.current.getProgress());
-      planeRef.current = new ml.Marker({ element: el, rotationAlignment: "map", pitchAlignment: "viewport", rotation: pos.bearing }).setLngLat(pos.position).addTo(map);
+      const cur = latest.current;
+      const art = createPlaneMarker(cur.reducedMotion, cur.camera === "overview" ? 44 : 100);
+      planeArt.current = art;
+      const p = cur.getProgress();
+      const pos = flightPositionAt(origin, destination, p);
+      art.update(altitudeRatio(p, cur.plannedSeconds), pos.bearing);
+      // 地図の面に沿って置く（カメラを傾けると機体も奥行きに沿って見える）
+      planeRef.current = new ml.Marker({ element: art.element, rotationAlignment: "map", pitchAlignment: "map", rotation: pos.bearing }).setLngLat(pos.position).addTo(map);
     },
     [origin, destination, originCode, destinationCode],
   );
@@ -119,6 +128,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
       else h.disable();
     }
     planeRef.current?.getElement().style.setProperty("display", camera === "window" ? "none" : "block");
+    planeArt.current?.setSize(camera === "overview" ? 44 : 100);
     if (camera === "overview") {
       const coords = routeLines(origin, destination).flat();
       const lngs = coords.map((c) => c[0]);
@@ -152,6 +162,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
       const p = cur.getProgress();
       const pos = flightPositionAt(origin, destination, p);
       planeRef.current?.setLngLat(pos.position).setRotation(pos.bearing);
+      planeArt.current?.update(altitudeRatio(p, cur.plannedSeconds), pos.bearing);
       if (map.isStyleLoaded() && (t - lastData > 500 || Math.abs(p - lastProgress) > 0.01)) {
         lastData = t;
         lastProgress = p;
@@ -160,7 +171,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
       }
       const h = map.getContainer().clientHeight;
       if (cur.camera === "follow") {
-        map.jumpTo({ center: pos.position, zoom: altitudeZoom(p, cur.plannedSeconds), bearing: pos.bearing, pitch: 58, padding: { top: Math.round(h * 0.1), bottom: 0, left: 0, right: 0 } });
+        map.jumpTo({ center: pos.position, zoom: altitudeZoom(p, cur.plannedSeconds), bearing: pos.bearing, pitch: 58, padding: { top: 0, bottom: Math.round(h * 0.3), left: 0, right: 0 } });
       } else if (cur.camera === "window") {
         map.jumpTo({ center: pos.position, zoom: altitudeZoom(p, cur.plannedSeconds) + 1.4, bearing: (pos.bearing + 90) % 360, pitch: 74, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
       }
