@@ -12,6 +12,8 @@ test("3D 地図で飛行し、カメラを切り替えても地図が落ちず�
   await startFlight(page, "HIJ", "HND", 45);
   const map = page.locator("[data-map-mode]");
   await expect(map).toHaveAttribute("data-map-mode", "3d");
+  // 787-9 の 3D モデルが読み込まれると、2D の機体は隠れる
+  await expect(page.locator(".maplibregl-marker:has(#sfp-body)")).toHaveCSS("visibility", "hidden", { timeout: 30000 });
   for (const name of ["航路全体", "窓から見る", "機体を追う"]) {
     await page.getByRole("radio", { name }).click();
     await expect(page.getByRole("radio", { name })).toHaveAttribute("aria-checked", "true");

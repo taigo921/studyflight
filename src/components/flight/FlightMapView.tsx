@@ -12,6 +12,13 @@ import { deviceHints, resolveRenderSettings } from "@/lib/render-quality";
 import MapCanvas, { type MapLib } from "@/components/map/MapCanvas";
 import { flownLines, multiLine, routeLines } from "./routeGeometry";
 import { createPlaneMarker, type PlaneMarker } from "./planeMarker";
+import { createPlane3D, PLANE_LAYER_ID, type Plane3D } from "./plane3d";
+import { displayScale, MODEL_LENGTH_M } from "./plane3dMath";
+import { withBase } from "@/lib/base-path";
+
+const MODEL_URL = withBase("/models/studyflight-787-9.glb");
+/** 画面上の機体の長さ（px） */
+const PLANE_PX = { follow: 130, overview: 46 } as const;
 
 export interface FlightMapViewProps {
   origin: LngLat;
@@ -65,10 +72,16 @@ function trailCoords(origin: LngLat, destination: LngLat, progress: number, tota
 }
 
 export default function FlightMapView(props: FlightMapViewProps) {
-  const { origin, destination, originCode, destinationCode, camera, styleId, labels, reducedMotion, quality } = props;
+  const { originCode, destinationCode, camera, styleId, labels, reducedMotion, quality } = props;
+  // 親は毎秒新しい配列を渡すので、座標の値が変わったときだけ作り直す（描画ループを毎秒やり直さない）
+  const [oLng, oLat] = props.origin;
+  const [dLng, dLat] = props.destination;
+  const origin = useMemo<LngLat>(() => [oLng, oLat], [oLng, oLat]);
+  const destination = useMemo<LngLat>(() => [dLng, dLat], [dLng, dLat]);
   const mapRef = useRef<MLMap | null>(null);
   const planeRef = useRef<Marker | null>(null);
   const planeArt = useRef<PlaneMarker | null>(null);
+  const plane3d = useRef<Plane3D | null>(null);
   const latest = useRef(props);
   useEffect(() => {
     latest.current = props;
@@ -97,9 +110,41 @@ export default function FlightMapView(props: FlightMapViewProps) {
           "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, "rgba(255,255,255,0)", 0.75, "rgba(255,255,255,0.55)", 1, "rgba(255,255,255,0.9)"],
         },
       });
+      // スタイルを切り替えるとカスタムレイヤーも消えるので、読み込みのたびに戻す
+      if (plane3d.current && !map.getLayer(PLANE_LAYER_ID)) map.addLayer(plane3d.current.layer);
     },
     [route, origin, destination],
   );
+
+  // 3D 機体（省電力では使わない）。読み込めなければ 2D の機体のまま
+  useEffect(() => {
+    if (!resolveRenderSettings(quality, deviceHints()).model3d) return;
+    let disposed = false;
+    let created: Plane3D | null = null;
+    createPlane3D(MODEL_URL)
+      .then((p) => {
+        created = p;
+        if (disposed) return p.dispose();
+        plane3d.current = p;
+        const map = mapRef.current;
+        // タイルの読み込み中でもスタイルさえあれば追加できる（未準備なら addOverlay が後で追加する）
+        try {
+          if (map && !map.getLayer(PLANE_LAYER_ID)) map.addLayer(p.layer);
+        } catch {
+          /* スタイル読み込み後に addOverlay で追加 */
+        }
+        planeRef.current?.getElement().style.setProperty("visibility", "hidden");
+      })
+      .catch(() => {
+        /* 2D の機体で続ける */
+      });
+    return () => {
+      disposed = true;
+      created?.dispose();
+      plane3d.current = null;
+      planeRef.current?.getElement().style.setProperty("visibility", "visible");
+    };
+  }, [quality]);
 
   const onReady = useCallback(
     (map: MLMap, ml: MapLib) => {
@@ -116,6 +161,8 @@ export default function FlightMapView(props: FlightMapViewProps) {
       art.update(altitudeRatio(p, cur.plannedSeconds), pos.bearing);
       // 地図の面に沿って置く（カメラを傾けると機体も奥行きに沿って見える）
       planeRef.current = new ml.Marker({ element: art.element, rotationAlignment: "map", pitchAlignment: "map", rotation: pos.bearing, subpixelPositioning: true }).setLngLat(pos.position).addTo(map);
+      // 3D 機体が先に読み込まれていれば 2D の機体は隠す
+      if (plane3d.current) art.element.style.visibility = "hidden";
     },
     [origin, destination, originCode, destinationCode],
   );
@@ -153,6 +200,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
     let lastData = 0;
     let lastProgress = -1;
     let groundElevation: number | null = null;
+    let noseUp = 0;
     // 離陸・着陸前後は低高度（大きな縮尺）で地面が速く流れるため、カメラは滑らかに毎フレーム近く更新する。
     // 標準は約30fps、省電力は0.25秒ごと。航跡の線の更新は0.5秒ごとに間引く
     const interval = reducedMotion ? 1000 : resolveRenderSettings(quality, deviceHints()).frameIntervalMs;
@@ -174,15 +222,41 @@ export default function FlightMapView(props: FlightMapViewProps) {
       // 地面の高さ（地形あり）をゆっくり追いかける
       const target = map.terrain ? (map.queryTerrainElevation(pos.position) ?? 0) : 0;
       groundElevation = groundElevation === null ? target : groundElevation + (target - groundElevation) * 0.06;
-      const elevation = groundElevation;
+      const ground = groundElevation;
+      const alt = altitudeRatio(p, cur.plannedSeconds);
+      // 3D 機体: 画面上でほぼ一定の大きさに見えるよう拡大し、高さも同じ比率で誇張する
+      const model = plane3d.current;
+      const zoom = cur.camera === "overview" ? map.getZoom() : altitudeZoom(p, cur.plannedSeconds);
+      const scale = displayScale(pos.position[1], zoom, cur.camera === "overview" ? PLANE_PX.overview : PLANE_PX.follow);
+      // 地図の中心は地面に置くので、機体は少しだけ浮かせ、高度感は影の離れ具合で出す
+      // （カメラ中心の標高は地形なしの地図では描画に反映されないため、機体の高さには使わない）
+      const planeLength = MODEL_LENGTH_M * scale;
+      const altitude = model ? planeLength * (0.08 + alt * 0.25) : 0;
+      const shadowDistance = planeLength * (0.06 + alt * 0.45);
+      // 上昇中は機首上げ、降下中はわずかに機首下げ（急に変わらないよう滑らかに）
+      const slope = altitudeRatio(Math.min(1, p + 0.002), cur.plannedSeconds) - altitudeRatio(Math.max(0, p - 0.002), cur.plannedSeconds);
+      noseUp += ((slope > 1e-6 ? 8 : slope < -1e-6 ? -3 : 0) - noseUp) * 0.05;
+      const elevation = ground;
       if (cur.camera === "follow") {
-        map.jumpTo({ center: pos.position, elevation, zoom: altitudeZoom(p, cur.plannedSeconds), bearing: pos.bearing, pitch: 58, padding: { top: 0, bottom: Math.round(h * 0.3), left: 0, right: 0 } });
+        map.jumpTo({ center: pos.position, elevation, zoom, bearing: pos.bearing, pitch: 62, padding: { top: 0, bottom: Math.round(h * 0.3), left: 0, right: 0 } });
       } else if (cur.camera === "window") {
         map.jumpTo({ center: pos.position, elevation, zoom: altitudeZoom(p, cur.plannedSeconds) + 1.4, bearing: (pos.bearing + 90) % 360, pitch: 74, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
       }
+      model?.setFrame({
+        lng: pos.position[0],
+        lat: pos.position[1],
+        bearing: pos.bearing,
+        pitch: noseUp,
+        bank: 0,
+        altitude,
+        shadowDistance,
+        ground,
+        scale,
+        visible: cur.camera !== "window",
+      });
       // カメラを動かした後に機体を置く（小数ピクセルのまま。整数への丸めと交互になると震えて見える）
       planeRef.current?.setLngLat(pos.position).setRotation(pos.bearing);
-      planeArt.current?.update(altitudeRatio(p, cur.plannedSeconds), pos.bearing);
+      planeArt.current?.update(alt, pos.bearing);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);

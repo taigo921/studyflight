@@ -14,6 +14,8 @@
 | 地図・地名 | OpenFreeMap / OpenMapTiles / OpenStreetMap | ODbL（OSM）他 | 可 | 必須 | 0（寄付制） |
 | 陸地（オフライン） | Natural Earth | パブリックドメイン | 可 | 任意 | 0 |
 | 地図描画 | MapLibre GL JS | BSD-3-Clause | 可 | ライセンス表記 | 0 |
+| 3D 描画 | Three.js | MIT | 可 | ライセンス表記 | 0 |
+| 機体モデル | StudyFlight 787-9 風モデル（開発者提供、手続き的に生成したオリジナル。生成スクリプトを assets/models に同梱。Boeing のライセンスモデルではない） | 開発者の権利 | 可 | 不要 | 0 |
 | 配信 | GitHub Pages | GitHub 規約 | 個人・小規模は可（商用 SaaS の主用途は規約確認） | — | 0 |
 
 使っていないもの: Jonty/airline-route-data（LICENSE なし。統計の参考のみで同梱しない）、Sentinel-2 cloudless 2016（CC BY 4.0。商用化時の切替候補として設定済み）。

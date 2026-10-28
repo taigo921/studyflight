@@ -88,6 +88,7 @@ node scripts/serve.mjs out 3000 /studyflight   # http://127.0.0.1:3000/studyflig
 - 衛星画像: Sentinel-2 cloudless by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0（非商用のみ）。商用化時の切替は docs/MAP_PROVIDERS.md
 - 標高: Terrain Tiles (Mapzen, AWS Open Data)
 - 地図・地名: OpenFreeMap / © OpenMapTiles / © OpenStreetMap contributors
+- 3D 描画: Three.js（MIT）。機体モデル: StudyFlight オリジナルの 787-9 風モデル（public/models、生成スクリプトは assets/models）
 - 空港データ: OurAirports — Public Domain
 - 地図データ: Natural Earth — Public Domain
 - 地図描画: MapLibre GL JS — BSD-3-Clause

@@ -113,6 +113,13 @@
 - [x] docs/ARCHITECTURE.md、docs/LICENSES_AND_COSTS.md
 - [ ] Stripe / Apple App 内課金・サーバー（要承認）
 
+## Phase 3.11 — 3D 機体（Boeing 787-9）
+
+- [x] 提供された 787-9 モデル（GLB）を MapLibre カスタムレイヤー + Three.js で描画（地球儀・追尾カメラ対応、機窓モードでは非表示）
+- [x] 学習経過に合わせて移動、機首を進行方向へ、上昇・降下で機首の上げ下げ、高度に応じた影
+- [x] iPhone 向け最適化: Three.js とモデルは遅延読み込み、ジオメトリ結合で描画 2 回、省電力では 2D の機体
+- [ ] iPhone 実機での描画負荷・見え方の確認
+
 ## Phase 4 — PWA・公開品質
 
 - [x] Manifest、アプリアイコン、ホーム画面追加案内
