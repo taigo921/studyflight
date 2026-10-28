@@ -46,7 +46,6 @@ export function CandidateCard({ c, selected, firstVisit, onPick }: { c: FlightCa
       </span>
       <span className="mt-1 flex flex-wrap items-center gap-1">
         <SourceBadge c={c} compact />
-        {c.sessions > 1 && <span className="rounded-full bg-gold/15 px-1.5 text-[10px] font-semibold text-gold">{c.sessions}回で到着</span>}
       </span>
       <FinalProgress value={c.finalProgress} />
     </button>
@@ -80,7 +79,6 @@ export function CandidateRow({ c, selected, firstVisit, onPick }: { c: FlightCan
           <span className="block font-semibold text-ink">約{c.blockMinutes}分</span>
           <span className="block text-[10px]">推定</span>
           {formatKm(c.distanceKm)}
-          {c.sessions > 1 && <span className="block text-[11px] font-semibold text-gold">{c.sessions}回で到着</span>}
         </span>
       </button>
     </li>

@@ -3,7 +3,6 @@
 // 着陸ボタン連打・リロード・2タブ同時操作でも冪等になる。
 
 import { airportCodeOf as airportCode } from "@/domain/airport-search";
-import { estimatedBlockMinutes } from "@/domain/flight-time";
 import { haversineKm } from "@/domain/geo";
 import {
   abandonSession,
@@ -57,21 +56,26 @@ export interface BoardingInput {
   routeSource?: FlightLeg["routeSource"];
   carriers?: string[];
   tripId?: string | null;
-  /** 途中で止まっている区間の続きを飛ぶ */
-  resumeLegId?: string;
 }
+
+/** 早期着陸のダイバート先（機体の現在位置から最寄りの空港） */
+export interface DivertTarget {
+  id: string;
+  code: string;
+}
+
+/** 区間のこの割合まで進んでいれば、早期着陸でも目的地に着いたことにする */
+export const ARRIVE_IF_PROGRESS_AT_LEAST = 0.9;
 
 /**
  * 搭乗券を発行（status=boarding）。未出発の古い搭乗券は置き換える。
- * 新しい区間を作るか、途中の区間を再開する。セッションの予定時間は min(学習時間, 区間の残り)。
+ * 飛行時間は学習時間と同じ（学習を終えると同時に目的地に着く）。上空で止まって次回に持ち越すことはしない。
  */
 export async function issueBoardingPass(input: BoardingInput): Promise<FlightSession> {
   const err = validatePlannedMinutes(input.plannedMinutes);
   if (err) throw new Error(err);
-  if (!input.resumeLegId) {
-    if (!input.origin || !input.destination) throw new Error("出発地と到着地を選んでください");
-    if (input.origin.id === input.destination.id) throw new Error("出発地と到着地は別の空港を選んでください");
-  }
+  if (!input.origin || !input.destination) throw new Error("出発地と到着地を選んでください");
+  if (input.origin.id === input.destination.id) throw new Error("出発地と到着地は別の空港を選んでください");
   const db = getDb();
   const issued = await db.transaction("rw", db.sessions, db.legs, async () => {
     const open = await db.sessions.where("status").anyOf("active", "paused").first();
@@ -79,21 +83,15 @@ export async function issueBoardingPass(input: BoardingInput): Promise<FlightSes
     // 未出発の搭乗券を取り消す（その搭乗券のために作った未飛行の区間も取り消す）
     for (const b of await db.sessions.where("status").equals("boarding").toArray()) {
       await db.sessions.delete(b.id);
-      if (b.legId && b.legId !== input.resumeLegId) await cancelLegIfUnflown(db, b.legId);
+      if (b.legId) await cancelLegIfUnflown(db, b.legId);
     }
     const t = new Date().toISOString();
-    let leg: FlightLeg;
-    if (input.resumeLegId) {
-      const found = await db.legs.get(input.resumeLegId);
-      if (!found || found.status !== "in_progress") throw new Error("再開できるフライトが見つかりません");
-      leg = found;
-    } else {
-      const o = input.origin!;
-      const d = input.destination!;
-      const km = Math.round(haversineKm([o.lng, o.lat], [d.lng, d.lat]) * 10) / 10;
-      // 進行中の別の区間がある場合は、その区間を取り消してから新しい区間を始める
-      for (const other of await db.legs.where("status").equals("in_progress").toArray()) await db.legs.update(other.id, { status: "cancelled", updatedAt: t });
-      leg = {
+    const o = input.origin!;
+    const d = input.destination!;
+    const km = Math.round(haversineKm([o.lng, o.lat], [d.lng, d.lat]) * 10) / 10;
+    // 進行中の別の区間がある場合（以前の途中停止の記録など）は取り消してから始める
+    for (const other of await db.legs.where("status").equals("in_progress").toArray()) await db.legs.update(other.id, { status: "cancelled", updatedAt: t });
+    const leg: FlightLeg = {
         id: newId(),
         tripId: input.tripId ?? null,
         originAirportId: o.id,
@@ -102,17 +100,16 @@ export async function issueBoardingPass(input: BoardingInput): Promise<FlightSes
         destinationCode: airportCode(d),
         routeSource: input.routeSource ?? "estimated",
         carriers: input.carriers ?? [],
-        distanceKm: km,
-        scheduledSeconds: estimatedBlockMinutes(km) * 60,
-        flownSeconds: 0,
-        status: "in_progress",
-        createdAt: t,
-        updatedAt: t,
-        arrivedAt: null,
-      };
-      await db.legs.add(leg);
-    }
-    const remaining = Math.max(1, leg.scheduledSeconds - leg.flownSeconds);
+      distanceKm: km,
+      // 学習時間ちょうどで到着する（候補は推定飛行時間が学習時間に近い空港から選ぶ）
+      scheduledSeconds: input.plannedMinutes * 60,
+      flownSeconds: 0,
+      status: "in_progress",
+      createdAt: t,
+      updatedAt: t,
+      arrivedAt: null,
+    };
+    await db.legs.add(leg);
     const session: FlightSession = {
       id: newId(),
       status: "boarding",
@@ -126,7 +123,7 @@ export async function issueBoardingPass(input: BoardingInput): Promise<FlightSes
       originCode: leg.originCode,
       destinationCode: leg.destinationCode,
       seat: input.seat ?? randomSeat(),
-      plannedSeconds: Math.min(input.plannedMinutes * 60, remaining),
+      plannedSeconds: input.plannedMinutes * 60,
       startedAt: null,
       activeSince: null,
       accumulatedFocusSeconds: 0,
@@ -136,7 +133,7 @@ export async function issueBoardingPass(input: BoardingInput): Promise<FlightSes
       completionType: null,
       abandonmentReason: null,
       legId: leg.id,
-      legStartSeconds: leg.flownSeconds,
+      legStartSeconds: 0,
       legScheduledSeconds: leg.scheduledSeconds,
       routeDistanceKm: leg.distanceKm,
       distanceKm: leg.distanceKm,
@@ -150,9 +147,7 @@ export async function issueBoardingPass(input: BoardingInput): Promise<FlightSes
   });
   track("boarding_pass_issued", {
     planned_minutes: issued.plannedSeconds / 60,
-    route_source: input.resumeLegId ? null : (input.routeSource ?? "estimated"),
-    resumed_leg: !!input.resumeLegId,
-    split: (issued.legStartSeconds ?? 0) + issued.plannedSeconds < (issued.legScheduledSeconds ?? 0),
+    route_source: input.routeSource ?? "estimated",
   });
   return issued;
 }
@@ -174,13 +169,22 @@ async function recomputeLeg(db: StudyFlightDB, legId: string): Promise<void> {
     .sort((a, b) => (a.completedAt ?? "").localeCompare(b.completedAt ?? ""));
   let flown = 0;
   let arrivedAt: string | null = null;
+  // ダイバートした場合は、実際に着いた空港を区間の到着地にする
+  let landed: { id: string; code: string } | null = null;
   for (const s of done) {
     flown += s.actualFocusSeconds ?? 0;
-    if (!arrivedAt && flown >= leg.scheduledSeconds - 0.5) arrivedAt = s.completedAt ?? new Date().toISOString();
+    if (!arrivedAt && (s.reachedDestination === true || flown >= leg.scheduledSeconds - 0.5)) {
+      arrivedAt = s.completedAt ?? new Date().toISOString();
+      if (s.landedAirportId) landed = { id: s.landedAirportId, code: s.landedCode ?? s.landedAirportId };
+    }
   }
   flown = Math.min(leg.scheduledSeconds, flown);
   const t = new Date().toISOString();
   const status: FlightLeg["status"] = arrivedAt ? "arrived" : leg.status === "arrived" ? "in_progress" : leg.status;
+  if (landed) {
+    leg.destinationAirportId = landed.id;
+    leg.destinationCode = landed.code;
+  }
   await db.legs.put({ ...leg, flownSeconds: flown, status, arrivedAt, updatedAt: t });
   if (arrivedAt && leg.tripId) {
     const trip = await db.trips.get(leg.tripId);
@@ -247,12 +251,27 @@ export const resumeFlight = (id: string, nowMs?: () => number) => applyTransitio
 export const abandonFlight = (id: string, reason?: string, nowMs?: () => number) => applyTransition(id, (s, now) => abandonSession(s, now, reason), nowMs);
 
 /**
- * 早期着陸。区間の途中なら機体はその地点で止まり、次回同じ地点から再開できる。
- * 集中した時間が短すぎる場合（既定5分未満）は欠航扱いで、区間は進まない。
+ * 早期着陸。機体は上空で止まらず必ずどこかに着陸する:
+ * 区間の 90% 以上進んでいれば目的地、それより手前なら divertTo（機体の現在位置から最寄りの空港）にダイバート。
+ * divertTo がなければ目的地に着く。集中時間が短すぎる場合（既定5分未満）は欠航扱い。
  */
-export async function landFlightEarly(id: string, nowMs?: () => number): Promise<FlightSession> {
+export async function landFlightEarly(id: string, nowMs?: () => number, divertTo?: DivertTarget | null): Promise<FlightSession> {
   const { earlyLandingMinSeconds } = await getPreferences();
-  return applyTransition(id, (s, now) => landEarly(s, now, earlyLandingMinSeconds), nowMs);
+  return applyTransition(
+    id,
+    (s, now) => {
+      const r = landEarly(s, now, earlyLandingMinSeconds);
+      if (r.noop || r.session.status !== "completed" || r.session.reachedDestination !== false) return r;
+      const sched = s.legScheduledSeconds ?? s.plannedSeconds;
+      const progress = ((s.legStartSeconds ?? 0) + (r.session.actualFocusSeconds ?? 0)) / Math.max(1, sched);
+      const toDestination = progress >= ARRIVE_IF_PROGRESS_AT_LEAST || !divertTo || divertTo.id === s.destinationAirportId;
+      const session: FlightSession = toDestination
+        ? { ...r.session, reachedDestination: true, distanceKm: s.routeDistanceKm ?? s.distanceKm }
+        : { ...r.session, reachedDestination: true, landedAirportId: divertTo.id, landedCode: divertTo.code };
+      return { ...r, session };
+    },
+    nowMs,
+  );
 }
 
 /** 途中の区間をあきらめる（機体は出発空港に戻った扱い。飛んだ時間の学習記録はそのまま残る）。 */

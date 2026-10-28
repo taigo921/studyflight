@@ -12,7 +12,7 @@ import { ProgressBar } from "@/components/ui/ProgressRing";
 import { Sheet } from "@/components/ui/Sheet";
 import { SubjectBadge } from "@/components/ui/SubjectBadge";
 import { updatePreferences } from "@/data/settings";
-import { abandonFlight, completeIfDue, landFlightEarly, pauseFlight, resumeFlight } from "@/data/sessions";
+import { abandonFlight, ARRIVE_IF_PROGRESS_AT_LEAST, completeIfDue, landFlightEarly, pauseFlight, resumeFlight } from "@/data/sessions";
 import { airportCodeOf } from "@/domain/airport-search";
 import { formatClock, formatLatLng, percent } from "@/domain/format";
 import { flightPositionAt, nearest, type LngLat } from "@/domain/geo";
@@ -126,10 +126,6 @@ export function FlightScreen() {
   const elapsed = elapsedSeconds(session, now);
   const pos = origin && destination ? flightPositionAt(origin, destination, progress) : null;
   const routeKm = session.routeDistanceKm ?? session.distanceKm;
-  // 今回の学習時間で目的地に届かない（分割飛行の途中）か
-  const legSched = session.legScheduledSeconds;
-  const partial = !!legSched && (session.legStartSeconds ?? 0) + session.plannedSeconds < legSched - 0.5;
-  const legRemainingMin = legSched ? Math.max(0, Math.ceil((legSched - (session.legStartSeconds ?? 0) - elapsed) / 60)) : 0;
   const paused = session.status === "paused";
   const anomaly = hasClockAnomaly(session, now);
 
@@ -145,6 +141,10 @@ export function FlightScreen() {
   };
 
   const onLand = async () => {
+    // 機体は上空で止まらない: 目的地の手前で終えるときは、いまの位置から最寄りの空港へ降りる
+    const divert = near ? { id: near.item.id, code: airportCodeOf(near.item) } : null;
+    const divertName = near ? `${near.item.nameJa ?? near.item.name}（${airportCodeOf(near.item)}）` : "空港";
+    const toDestination = !divert || divert.id === session.destinationAirportId || legProgressOf(session, Date.now()) >= ARRIVE_IF_PROGRESS_AT_LEAST;
     const outcome = earlyLandingOutcome(session, Date.now(), prefs.earlyLandingMinSeconds);
     const minMin = Math.round(prefs.earlyLandingMinSeconds / 60);
     const ok = await confirmDialog(
@@ -158,15 +158,15 @@ export function FlightScreen() {
         : {
             title: "早期着陸しますか？",
             message:
-              legProgressOf(session, Date.now()) >= 1
+              toDestination
                 ? `ここまでの集中時間 ${formatClock(elapsedSeconds(session, Date.now()))} を記録して、${session.destinationCode} に着陸します。`
-                : `ここまでの集中時間 ${formatClock(elapsedSeconds(session, Date.now()))} を記録して、今回の学習を終えます。機体はいまの地点で待機し、次回はこの地点から ${session.destinationCode} へ飛行を再開します。`,
-            confirmLabel: "今回の学習を終える",
+                : `ここまでの集中時間 ${formatClock(elapsedSeconds(session, Date.now()))} を記録します。${session.destinationCode} の手前なので、最寄りの${divertName}にダイバートして着陸し、次はそこから出発します。`,
+            confirmLabel: "着陸する",
           },
     );
     if (!ok) return;
     await run(async () => {
-      const r = await landFlightEarly(session.id);
+      const r = await landFlightEarly(session.id, undefined, toDestination ? null : divert);
       if (r.status === "abandoned") router.replace("/");
     }, "着陸できませんでした");
   };
@@ -329,7 +329,7 @@ export function FlightScreen() {
           </div>
           <div className="tabular flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-mute" data-testid="flight-eta">
             <span>
-              {paused ? "一時停止中は到着時刻が後ろにずれます" : `${partial ? "今回の終了" : "到着予定"} ${clockTime(now + remaining * 1000)}`}
+              {paused ? "一時停止中は到着時刻が後ろにずれます" : `到着予定 ${clockTime(now + remaining * 1000)}`}
             </span>
             {pos && (
               <span className="min-w-0 truncate">
@@ -339,14 +339,9 @@ export function FlightScreen() {
             )}
           </div>
           <ProgressBar value={progress} color="var(--color-gold)" label="飛行の進捗" />
-          {partial && (
-            <p className="text-xs text-mute" data-testid="partial-note">
-              今回は {session.destinationCode} の手前まで（到着まで残り約{legRemainingMin}分・次回は続きから）
-            </p>
-          )}
           <div className="flex items-center gap-3 short:justify-center">
             <Button size="lg" variant="gold" disabled={busy} onClick={onLand} aria-label="早期着陸" className="flex-1 short:min-h-11 short:flex-none short:px-8">
-              <IconLanding size={20} /> {partial ? "学習を終える" : "着陸する"}
+              <IconLanding size={20} /> 着陸する
             </Button>
             <button type="button" onClick={onAbandon} disabled={busy} className="min-h-11 shrink-0 rounded-xl px-3 text-xs text-danger/90 hover:text-danger">
               破棄

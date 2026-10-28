@@ -1,6 +1,6 @@
 "use client";
 
-// 行き先候補のリスト（時間に合う便 / 分割して飛ぶ便）。絞り込み検索つき。
+// 行き先候補のリスト（推定飛行時間が学習時間 ± 許容幅の便）。絞り込み検索つき。
 import { useDeferredValue, useState } from "react";
 import { CandidateRow } from "@/components/boarding/FlightCandidateViews";
 import { IconSearch } from "@/components/icons/Icons";
@@ -57,16 +57,14 @@ export function DestinationPicker({ result, studyMinutes, visited, value, onChan
           className="min-h-10 min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-mute/60 focus-visible:outline-none"
         />
       </label>
-      <Section title="時間に合う便" items={result.fit.filter(match)} value={value} visited={visited} onChange={onChange} />
       <Section
-        title="分割して飛ぶ便"
-        note={`予定飛行時間が長い便は、${studyMinutes}分ずつ何回かに分けて飛びます。途中で終えても、次回は同じ地点から再開できます。`}
-        items={result.longer.filter(match)}
+        title="時間に合う便"
+        note={`${studyMinutes}分かけて飛び、学習を終えると同時に到着します。`}
+        items={result.fit.filter(match)}
         value={value}
         visited={visited}
         onChange={onChange}
       />
-      <Section title="短い便" note="学習時間より早く着く便です。到着した時点でその回の学習が終わります。" items={result.shorter.filter(match)} value={value} visited={visited} onChange={onChange} />
       <p className="px-1 text-[11px] text-mute/80">
         直行便実績: OpenFlights 路線データ（ODbL, 2014年時点。現在の運航とは異なる場合があります）。予定飛行時間は距離からの推定値で、実際の時刻表とは異なります。
       </p>

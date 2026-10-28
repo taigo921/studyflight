@@ -49,8 +49,8 @@ export const en: Messages = {
     ctaSecondary: "Try it now",
     featuresTitle: "What you can do",
     features: [
-      { title: "Destinations that fit your time", body: "Study for 30 minutes and get airports about 30 minutes away. Long routes can be flown over several sessions." },
-      { title: "Stop anytime, resume mid-air", body: "End a session early and the plane holds in the air. Next time you continue from the same point." },
+      { title: "Destinations that fit your time", body: "Study for 30 minutes and get airports about 30 minutes away by real flight time. You land the moment you finish." },
+      { title: "A journey that connects", body: "Your next flight starts from where you landed, so you can hop across Japan and the world." },
       { title: "Your data stays on device", body: "No sign-up needed. Records are stored on your device and the timer works offline." },
     ],
     howTitle: "How it works",

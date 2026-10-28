@@ -1,23 +1,21 @@
 "use client";
 
 // 行き先選び: 学習時間 → 実在路線（直行便実績）にもとづく候補 → 搭乗券の発行。
-// 上空で止まっている区間があれば、その続きを飛ぶ画面を出す。
+// 飛行時間は学習時間と同じ。候補は推定飛行時間が学習時間 ± 許容幅に収まる空港。
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { DurationRuler } from "@/components/boarding/DurationRuler";
-import { CandidateCard, SourceBadge } from "@/components/boarding/FlightCandidateViews";
+import { CandidateCard } from "@/components/boarding/FlightCandidateViews";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AirportCombobox } from "@/components/flight/AirportCombobox";
 import { DestinationPicker } from "@/components/flight/DestinationPicker";
 import { IconChevronLeft, IconLog, IconTarget } from "@/components/icons/Icons";
 import { Button } from "@/components/ui/Button";
-import { ProgressBar } from "@/components/ui/ProgressRing";
-import { Segmented } from "@/components/ui/Segmented";
 import { Sheet } from "@/components/ui/Sheet";
 import { SUGGESTED_AIRPORT_IDS } from "@/data/core-airports";
-import { cancelLeg, issueBoardingPass, OpenFlightExistsError } from "@/data/sessions";
+import { issueBoardingPass, OpenFlightExistsError } from "@/data/sessions";
 import { updatePreferences } from "@/data/settings";
 import { setFinalDestination, abandonTrip } from "@/data/trips";
 import { airportCodeOf, airportDisplayName } from "@/domain/airport-search";
@@ -27,12 +25,12 @@ import { haversineKm } from "@/domain/geo";
 import { arrivalAirportId, travelState } from "@/domain/route-planner";
 import { buildCandidate, planItinerary, searchFlights, type FlightCandidate } from "@/domain/route-search";
 import { visitedAirports } from "@/domain/stats";
-import type { Airport, FlightLeg, StudyTask, Subject } from "@/domain/types";
+import type { Airport, StudyTask, Subject } from "@/domain/types";
 import { useActiveTrip, useLegs, usePreferences, useSessions } from "@/features/data-hooks";
 import { useAirports } from "@/features/useAirports";
 import { useRouteGraph } from "@/features/useRouteGraph";
 import { isWebGLAvailable } from "@/lib/world";
-import { confirmDialog, toast } from "@/store/ui";
+import { toast } from "@/store/ui";
 
 const RoutePickerMap = dynamic(() => import("@/components/boarding/RoutePickerMap"), { ssr: false, loading: () => null });
 const noop = () => () => {};
@@ -51,8 +49,8 @@ export function RouteStep(props: Props) {
   const prefs = usePreferences();
   if (!sessions || !legs || !prefs.loaded) return <main className="min-h-dvh" aria-busy="true" />;
   const st = travelState(sessions, legs, prefs.homeAirportId);
-  if (st.kind === "air") return <ResumeLeg {...props} leg={st.leg} />;
-  return <ChooseRoute {...props} groundId={st.airportId} />;
+  // 以前の「上空で一時停止」の記録が残っていれば、その区間の出発空港から選び直す（発行時にその区間は取り消す）
+  return <ChooseRoute {...props} groundId={st.kind === "air" ? st.leg.originAirportId : st.airportId} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,87 +71,6 @@ function useIssue(props: Props) {
   return { busy, run };
 }
 
-/** 上空で止まっている区間の続き */
-function ResumeLeg(props: Props & { leg: FlightLeg }) {
-  const { leg } = props;
-  const prefs = usePreferences();
-  const { byId } = useAirports();
-  const webgl = useSyncExternalStore(noop, isWebGLAvailable, () => false);
-  const [minutes, setMinutes] = useState(30);
-  const { busy, run } = useIssue(props);
-  const o = byId.get(leg.originAirportId);
-  const d = byId.get(leg.destinationAirportId);
-  const remainingMin = Math.ceil((leg.scheduledSeconds - leg.flownSeconds) / 60);
-  const thisTime = Math.min(minutes, remainingMin);
-  const progress = leg.flownSeconds / leg.scheduledSeconds;
-
-  return (
-    <main className="relative h-dvh overflow-hidden bg-night">
-      {webgl && o && d && (
-        <ErrorBoundary fallback={null}>
-          <RoutePickerMap origin={o} reachKm={0} candidates={[{ airport: d }]} selectedId={d.id} onSelect={() => {}} styleId={prefs.mapStyle} labels={prefs.mapLabels} quality={prefs.renderQuality} bottomInset={420} />
-        </ErrorBoundary>
-      )}
-      <header className="px-safe pt-safe absolute inset-x-0 top-0 z-10 flex items-center gap-3">
-        <button type="button" onClick={props.onBack} aria-label="座席選択に戻る" className={glassBtn}>
-          <IconChevronLeft />
-        </button>
-        <div className="min-w-0 flex-1 rounded-2xl border border-white/15 bg-night/60 px-3 py-2 shadow-lg backdrop-blur-md">
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-gold">上空で一時停止中</p>
-          <p className="tabular truncate text-sm font-bold">
-            {leg.originCode} → {leg.destinationCode} · {Math.round(progress * 100)}%
-          </p>
-        </div>
-      </header>
-      <section className="px-safe pb-safe absolute inset-x-0 bottom-0 z-10 rounded-t-[28px] border-t border-white/10 bg-night/90 pt-4 backdrop-blur-xl" aria-label="続きのフライト">
-        <div className="mx-auto flex max-w-xl flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-lg font-bold">続きから飛ぶ</p>
-              <p className="text-xs text-mute">
-                {d ? airportDisplayName(d) : leg.destinationCode}まで 残り約{remainingMin}分（推定）· {formatKm(leg.distanceKm * (1 - progress))}
-              </p>
-            </div>
-            <SourceBadge c={{ source: leg.routeSource, carriers: leg.carriers }} />
-          </div>
-          <ProgressBar value={progress} color="var(--color-gold)" label="区間の進捗" />
-          <div className="flex items-baseline justify-between px-1">
-            <p className="text-xs font-semibold text-mute">今回の学習時間</p>
-            <p className="tabular text-sm text-mute">
-              <span className="text-2xl font-bold text-ink" data-testid="ruler-value">
-                {minutes}
-              </span>{" "}
-              分
-            </p>
-          </div>
-          <DurationRuler value={minutes} onChange={setMinutes} />
-          <p className="text-xs text-mute">
-            {thisTime >= remainingMin ? `今回で ${leg.destinationCode} に到着します（${thisTime}分）。` : `今回は${thisTime}分飛び、あと約${remainingMin - thisTime}分を次回以降に飛びます。`}
-          </p>
-          <Button size="lg" className="w-full" disabled={busy} onClick={() => run({ plannedMinutes: minutes, resumeLegId: leg.id })}>
-            続きの搭乗券を発行
-          </Button>
-          <button
-            type="button"
-            className="min-h-11 text-sm text-mute"
-            onClick={async () => {
-              const ok = await confirmDialog({
-                title: "この区間をやめますか？",
-                message: `${leg.originCode} に戻った扱いになり、別の行き先を選べます。ここまでの学習記録は残ります。`,
-                confirmLabel: "やめて戻る",
-                tone: "danger",
-              });
-              if (ok) await cancelLeg(leg.id).catch((e) => toast(e instanceof Error ? e.message : "取り消せませんでした", "error"));
-            }}
-          >
-            この区間をやめて出発空港に戻る
-          </button>
-        </div>
-      </section>
-    </main>
-  );
-}
-
 /** 地上にいるときの行き先選び */
 function ChooseRoute(props: Props & { groundId: string | null }) {
   const prefs = usePreferences();
@@ -167,7 +84,6 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
   const [originChoice, setOrigin] = useState<Airport | null>(null);
   const [pick, setPick] = useState<FlightCandidate | null>(null);
   const [manual, setManual] = useState<Airport | null>(null);
-  const [tab, setTab] = useState<"fit" | "longer" | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [finalOpen, setFinalOpen] = useState(false);
   const { busy, run } = useIssue(props);
@@ -190,15 +106,14 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tolerance は数値2つから作るので個別に依存させる
     [origin, minutes, tolerance.minus, tolerance.plus, byId, airports, graph, final, prefs.includeEstimatedRoutes],
   );
-  const activeTab: "fit" | "longer" = tab ?? (result && result.fit.length === 0 && result.longer.length > 0 ? "longer" : "fit");
-  const list = result ? (activeTab === "fit" ? result.fit : result.longer) : [];
+  const list = result ? result.fit : [];
   const itinerary = useMemo(() => (graph && origin && final && origin.id !== final.id ? planItinerary(graph, byId, origin.id, final.id) : null), [graph, byId, origin, final]);
 
   // 選択中の候補（検索条件が変わって候補から外れたら解除。手動選択は維持）
   const selected: FlightCandidate | null = useMemo(() => {
     if (manual && origin) return buildCandidate(origin, manual, graph, minutes, final);
     if (!pick || !result) return null;
-    return [...result.fit, ...result.longer].find((c) => c.airport.id === pick.airport.id) ?? null;
+    return result.fit.find((c) => c.airport.id === pick.airport.id) ?? null;
   }, [manual, pick, result, origin, minutes, graph, final]);
 
   useEffect(() => {
@@ -245,7 +160,7 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
         <ErrorBoundary fallback={null} onError={() => setMapFailed(true)}>
           <RoutePickerMap
             origin={origin}
-            reachKm={activeTab === "fit" ? kmForBlockMinutes(minutes + tolerance.plus) : 0}
+            reachKm={kmForBlockMinutes(minutes + tolerance.plus)}
             candidates={selected && !list.some((c) => c.airport.id === selected.airport.id) ? [...list, selected] : list}
             selectedId={selected?.airport.id ?? null}
             onSelect={(a) => {
@@ -331,19 +246,7 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
             </span>
           </div>
 
-          {result && (
-            <Segmented<"fit" | "longer">
-              label="候補の種類"
-              value={activeTab}
-              onChange={setTab}
-              options={[
-                { value: "fit", label: `時間に合う ${result.fit.length}` },
-                { value: "longer", label: `分割して飛ぶ ${result.longer.length}` },
-              ]}
-            />
-          )}
-
-          {noFit && activeTab === "fit" && (
+          {noFit && (
             <div className="rounded-2xl border border-gold/40 bg-gold/10 p-3 text-xs text-ink" role="status">
               <p className="font-semibold">
                 {airportCodeOf(origin)} から {Math.max(0, minutes - tolerance.minus)}〜{minutes + tolerance.plus}分で着ける
@@ -354,11 +257,6 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
                 <button type="button" className="min-h-9 rounded-full border border-line px-3" onClick={() => setTol(tolerance.minus + 20, tolerance.plus + 20)}>
                   許容幅を±{Math.max(tolerance.minus, tolerance.plus) + 20}分に広げる
                 </button>
-                {result!.longer.length > 0 && (
-                  <button type="button" className="min-h-9 rounded-full border border-line px-3" onClick={() => setTab("longer")}>
-                    長い便を分割して飛ぶ（{result!.longer.length}件）
-                  </button>
-                )}
                 {!prefs.includeEstimatedRoutes && (
                   <button type="button" className="min-h-9 rounded-full border border-line px-3" onClick={() => updatePreferences({ includeEstimatedRoutes: true })}>
                     推定ルートも表示する
@@ -377,9 +275,7 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
 
           {selected && (
             <p className="text-xs text-mute">
-              {selected.blockMinutes <= minutes
-                ? `約${selected.blockMinutes}分で ${airportCodeOf(selected.airport)} に到着し、その時点で今回の学習が終わります。`
-                : `今回は${minutes}分飛んで上空で止まり、残り約${selected.blockMinutes - minutes}分は次回以降に同じ地点から飛びます（全${selected.sessions}回）。`}
+              {`${minutes}分かけて ${airportCodeOf(selected.airport)} へ飛び、学習を終えると同時に到着します（推定飛行時間 約${selected.blockMinutes}分）。`}
             </p>
           )}
           <Button
