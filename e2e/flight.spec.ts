@@ -243,3 +243,12 @@ test("ログの記録をその場で削除できる（確認は同じシート�
   await expect(page.getByText("記録を削除しました")).toBeVisible();
   await expect(page.getByRole("button", { name: /NGOからHND/ })).toHaveCount(0);
 });
+
+test("iPhone 幅で横にはみ出すページがない", async ({ page }) => {
+  await skipOnboarding(page);
+  for (const p of ["/", "/log/", "/analytics/", "/passport/", "/settings/", "/goals/", "/subjects/", "/boarding/", "/lp/", "/privacy/"]) {
+    await page.goto(p);
+    await page.waitForLoadState("networkidle");
+    expect.soft(await page.evaluate(() => document.documentElement.scrollWidth), p).toBeLessThanOrEqual(390);
+  }
+});

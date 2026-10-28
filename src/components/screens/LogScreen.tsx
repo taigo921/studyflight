@@ -72,8 +72,8 @@ export function LogScreen() {
             { value: "30d", label: "30日" },
           ]}
         />
-        <div className="flex gap-2">
-          <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl border border-line bg-surface px-3 focus-within:border-sky">
+        <div className="flex min-w-0 gap-2">
+          <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-2xl border border-line bg-surface px-3 focus-within:border-sky">
             <IconSearch size={18} className="text-mute" />
             <input
               type="search"
@@ -88,7 +88,7 @@ export function LogScreen() {
             value={subjectId}
             onChange={(e) => setSubjectId(e.target.value)}
             aria-label="科目で絞り込み"
-            className="min-h-11 max-w-[40%] rounded-2xl border border-line bg-surface px-3 text-ink"
+            className="min-h-11 w-[36%] min-w-0 shrink-0 truncate rounded-2xl border border-line bg-surface px-3 text-ink"
           >
             <option value="all">全科目</option>
             {usedSubjects.map((s) => (

@@ -104,6 +104,8 @@ export default function FlightMapView(props: FlightMapViewProps) {
   const onReady = useCallback(
     (map: MLMap, ml: MapLib) => {
       mapRef.current = map;
+      // 地形の高さにカメラの中心を毎フレーム合わせると、山の上で画面が上下に揺れる。高さはこちらで滑らかにして渡す
+      map.setCenterClampedToGround(false);
       new ml.Marker({ element: airportMarkerEl(originCode, "origin"), anchor: "bottom" }).setLngLat(origin).addTo(map);
       new ml.Marker({ element: airportMarkerEl(destinationCode, "destination"), anchor: "bottom" }).setLngLat(destination).addTo(map);
       const cur = latest.current;
@@ -113,7 +115,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
       const pos = flightPositionAt(origin, destination, p);
       art.update(altitudeRatio(p, cur.plannedSeconds), pos.bearing);
       // 地図の面に沿って置く（カメラを傾けると機体も奥行きに沿って見える）
-      planeRef.current = new ml.Marker({ element: art.element, rotationAlignment: "map", pitchAlignment: "map", rotation: pos.bearing }).setLngLat(pos.position).addTo(map);
+      planeRef.current = new ml.Marker({ element: art.element, rotationAlignment: "map", pitchAlignment: "map", rotation: pos.bearing, subpixelPositioning: true }).setLngLat(pos.position).addTo(map);
     },
     [origin, destination, originCode, destinationCode],
   );
@@ -150,6 +152,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
     let lastFrame = 0;
     let lastData = 0;
     let lastProgress = -1;
+    let groundElevation: number | null = null;
     // 離陸・着陸前後は低高度（大きな縮尺）で地面が速く流れるため、カメラは滑らかに毎フレーム近く更新する。
     // 標準は約30fps、省電力は0.25秒ごと。航跡の線の更新は0.5秒ごとに間引く
     const interval = reducedMotion ? 1000 : resolveRenderSettings(quality, deviceHints()).frameIntervalMs;
@@ -161,8 +164,6 @@ export default function FlightMapView(props: FlightMapViewProps) {
       const cur = latest.current;
       const p = cur.getProgress();
       const pos = flightPositionAt(origin, destination, p);
-      planeRef.current?.setLngLat(pos.position).setRotation(pos.bearing);
-      planeArt.current?.update(altitudeRatio(p, cur.plannedSeconds), pos.bearing);
       if (map.isStyleLoaded() && (t - lastData > 500 || Math.abs(p - lastProgress) > 0.01)) {
         lastData = t;
         lastProgress = p;
@@ -170,11 +171,18 @@ export default function FlightMapView(props: FlightMapViewProps) {
         (map.getSource("sf-trail") as GeoJSONSource | undefined)?.setData({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: trailCoords(origin, destination, p, totalKm) } });
       }
       const h = map.getContainer().clientHeight;
+      // 地面の高さ（地形あり）をゆっくり追いかける
+      const target = map.terrain ? (map.queryTerrainElevation(pos.position) ?? 0) : 0;
+      groundElevation = groundElevation === null ? target : groundElevation + (target - groundElevation) * 0.06;
+      const elevation = groundElevation;
       if (cur.camera === "follow") {
-        map.jumpTo({ center: pos.position, zoom: altitudeZoom(p, cur.plannedSeconds), bearing: pos.bearing, pitch: 58, padding: { top: 0, bottom: Math.round(h * 0.3), left: 0, right: 0 } });
+        map.jumpTo({ center: pos.position, elevation, zoom: altitudeZoom(p, cur.plannedSeconds), bearing: pos.bearing, pitch: 58, padding: { top: 0, bottom: Math.round(h * 0.3), left: 0, right: 0 } });
       } else if (cur.camera === "window") {
-        map.jumpTo({ center: pos.position, zoom: altitudeZoom(p, cur.plannedSeconds) + 1.4, bearing: (pos.bearing + 90) % 360, pitch: 74, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
+        map.jumpTo({ center: pos.position, elevation, zoom: altitudeZoom(p, cur.plannedSeconds) + 1.4, bearing: (pos.bearing + 90) % 360, pitch: 74, padding: { top: 0, bottom: 0, left: 0, right: 0 } });
       }
+      // カメラを動かした後に機体を置く（小数ピクセルのまま。整数への丸めと交互になると震えて見える）
+      planeRef.current?.setLngLat(pos.position).setRotation(pos.bearing);
+      planeArt.current?.update(altitudeRatio(p, cur.plannedSeconds), pos.bearing);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
