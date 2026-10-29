@@ -100,3 +100,4 @@ node scripts/serve.mjs out 3000 /studyflight   # http://127.0.0.1:3000/studyflig
 - docs/MAP_PROVIDERS.md — 地図・衛星画像の配信元比較
 - docs/ANALYTICS.md — 分析イベントと指標
 - docs/LICENSES_AND_COSTS.md — ライセンスと費用
+- docs/FIREBASE_SETUP.md — フレンド機能（Firebase）の設定手順

@@ -11,6 +11,7 @@ import { Button, LinkButton } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressRing";
 import { Sheet } from "@/components/ui/Sheet";
 import { SubjectBadge } from "@/components/ui/SubjectBadge";
+import { CrewStrip } from "@/components/social/CrewStrip";
 import { updatePreferences } from "@/data/settings";
 import { abandonFlight, ARRIVE_IF_PROGRESS_AT_LEAST, completeIfDue, landFlightEarly, pauseFlight, resumeFlight } from "@/data/sessions";
 import { airportCodeOf } from "@/domain/airport-search";
@@ -249,6 +250,7 @@ export function FlightScreen() {
             <div className="mt-1 flex justify-center">
               <SubjectBadge name={session.subjectName} color={session.subjectColor} size="sm" />
             </div>
+            {session.groupId && <CrewStrip groupId={session.groupId} />}
           </div>
           <div className="flex flex-col items-center gap-1">
             <button type="button" onClick={() => setStyleOpen(true)} aria-label="地図の見た目を変える" className={glass}>

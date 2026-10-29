@@ -262,3 +262,12 @@ export const IconLayers = (p: IconProps) => (
     <path d="m3.5 12.5 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5" />
   </Base>
 );
+
+export const IconUsers = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="9" cy="8.5" r="3" />
+    <path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8" />
+    <path d="M15.5 5.8a3 3 0 0 1 0 5.4" />
+    <path d="M17 14.5c1.9.5 3.1 2 3.5 4.5" />
+  </Base>
+);

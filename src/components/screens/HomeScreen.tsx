@@ -6,7 +6,9 @@ import { FlightStub } from "@/components/flight/FlightStub";
 import { JourneyCard } from "@/components/flight/JourneyCard";
 import { useAirports } from "@/features/useAirports";
 import { travelState } from "@/domain/route-planner";
-import { IconChevronRight, IconPlane, IconSettings, IconStreak, IconTarget } from "@/components/icons/Icons";
+import { IconChevronRight, IconPlane, IconSettings, IconStreak, IconTarget, IconUsers } from "@/components/icons/Icons";
+import { socialConfigured } from "@/lib/firebase";
+import { useFriendships, useGroupInvites, useSocial } from "@/features/social";
 import { LinkButton } from "@/components/ui/Button";
 import { Card, EmptyState, SectionTitle } from "@/components/ui/Card";
 import { ProgressBar, ProgressRing } from "@/components/ui/ProgressRing";
@@ -22,6 +24,12 @@ export function HomeScreen() {
   const open = useOpenFlight();
   const boarding = useBoardingFlight();
   const prefs = usePreferences();
+  // フレンド申請と同乗の招待の数（アイコンのバッジ）
+  const social = useSocial();
+  const socialUid = social.status === "ready" ? social.uid : null;
+  const friendships = useFriendships(socialUid);
+  const invites = useGroupInvites(socialUid);
+  const socialBadge = (friendships ?? []).filter((f) => f.status === "pending" && f.requester !== socialUid).length + (invites?.length ?? 0);
   const { byId } = useAirports();
   const legs = useLegs();
   const trip = useActiveTrip();
@@ -45,9 +53,21 @@ export function HomeScreen() {
             <p className="text-[17px] leading-tight font-bold tracking-tight">StudyFlight</p>
           </div>
         </div>
-        <Link href="/settings/" aria-label="設定" className="inline-flex size-11 items-center justify-center rounded-full text-mute hover:bg-elevated hover:text-ink">
-          <IconSettings />
-        </Link>
+        <div className="flex items-center">
+          {socialConfigured() && (
+            <Link href="/friends/" aria-label="フレンド" className="relative inline-flex size-11 items-center justify-center rounded-full text-mute hover:bg-elevated hover:text-ink">
+              <IconUsers />
+              {socialBadge > 0 && (
+                <span className="tabular absolute top-1 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-bold text-night" aria-label={`新しいお知らせ ${socialBadge}件`}>
+                  {socialBadge}
+                </span>
+              )}
+            </Link>
+          )}
+          <Link href="/settings/" aria-label="設定" className="inline-flex size-11 items-center justify-center rounded-full text-mute hover:bg-elevated hover:text-ink">
+            <IconSettings />
+          </Link>
+        </div>
       </header>
 
       <div className="relative flex flex-col gap-4">

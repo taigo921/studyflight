@@ -4,13 +4,13 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { glassBtn, RouteStep } from "@/components/boarding/RouteStep";
 import { SeatMap, seatKind } from "@/components/boarding/SeatMap";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { BoardingPass, flightNumber } from "@/components/flight/BoardingPass";
 import { SubjectPicker, TaskPicker } from "@/components/flight/SubjectPicker";
-import { IconChevronLeft, IconPlane } from "@/components/icons/Icons";
+import { IconChevronLeft, IconPlane, IconUsers } from "@/components/icons/Icons";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -23,6 +23,9 @@ import { useBoardingFlight, useOpenFlight, usePreferences, useSessions, useSubje
 import { useAirports } from "@/features/useAirports";
 import { isWebGLAvailable } from "@/lib/world";
 import { toast } from "@/store/ui";
+import { groupLink, setGroupStatus, updateMember } from "@/data/social";
+import { useGroup, useGroupMembers, useSocial } from "@/features/social";
+import { shareLink } from "@/lib/share-link";
 
 const RoutePickerMap = dynamic(() => import("@/components/boarding/RoutePickerMap"), { ssr: false, loading: () => null });
 const noop = () => () => {};
@@ -147,16 +150,64 @@ function PassStep({ boarding }: { boarding: FlightSession }) {
   const o = byId.get(boarding.originAirportId);
   const d = byId.get(boarding.destinationAirportId);
 
+  // 同乗フライト: 機長が出発すると全員が出発する
+  const social = useSocial();
+  const gid = boarding.groupId ?? null;
+  const group = useGroup(gid && social.status === "ready" ? gid : null);
+  const members = useGroupMembers(gid && social.status === "ready" ? gid : null);
+  const isHost = !!group && group.host === social.uid;
+  const waitForHost = !!gid && !isHost;
+  const autoDeparted = useRef(false);
+
   const depart = async () => {
     setBusy(true);
     try {
       const s = await departFlight(boarding.id);
+      if (gid && isHost) await setGroupStatus(gid, "inflight").catch(() => toast("同乗者への出発の合図を送れませんでした", "error"));
       router.push(`/flight/?id=${s.id}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : "出発できませんでした", "error");
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!gid || isHost || !group || autoDeparted.current) return;
+    if (group.status === "inflight") {
+      autoDeparted.current = true;
+      setTimeout(() => void depart(), 0); // 描画の外で出発処理をする
+    } else if (group.status === "cancelled") {
+      autoDeparted.current = true;
+      toast("機長がこの便を取り消しました");
+      void abandonFlight(boarding.id, "group_cancelled");
+    }
+    // depart は毎回作り直されるが、合図を受けたときに一度だけ呼べばよい
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gid, isHost, group?.status]);
+
+  const cancel = async () => {
+    if (gid && social.uid) {
+      if (isHost) await setGroupStatus(gid, "cancelled").catch(() => {});
+      else await updateMember(gid, social.uid, { status: "left", focusSeconds: 0 }).catch(() => {});
+    }
+    await abandonFlight(boarding.id, "boarding_cancelled");
+  };
+
+  const crew = gid ? (
+    <div className="mx-auto mt-2 flex max-w-md items-center gap-2 rounded-2xl border border-white/15 bg-night/70 px-3 py-2 shadow-lg backdrop-blur-md" data-testid="group-crew">
+      <IconUsers size={18} className="shrink-0 text-gold" />
+      <p className="min-w-0 flex-1 truncate text-xs">
+        <span className="font-semibold text-gold">同乗 {(members ?? []).filter((m) => m.status !== "left").length}人</span>{" "}
+        {(members ?? [])
+          .filter((m) => m.status !== "left")
+          .map((m) => `${m.displayName}（${m.seat}）`)
+          .join("、")}
+      </p>
+      <button type="button" onClick={() => shareLink(groupLink(gid), `StudyFlight で一緒に勉強しよう！ ${boarding.originCode}→${boarding.destinationCode}（${boarding.plannedSeconds / 60}分）の便に乗って`)} className="min-h-9 shrink-0 rounded-full border border-sky/40 px-3 text-xs font-semibold text-sky">
+        招待
+      </button>
+    </div>
+  ) : null;
 
   if (phase === "gate") {
     return (
@@ -173,11 +224,18 @@ function PassStep({ boarding }: { boarding: FlightSession }) {
           <p className="text-sm text-mute">
             {boarding.originCode} → {boarding.destinationCode} · {boarding.plannedSeconds / 60}分 · {boarding.subjectName}
           </p>
+          {crew}
         </div>
         <div className="pb-safe absolute inset-x-0 bottom-10 flex flex-col items-center gap-3 px-8">
-          <Button size="lg" variant="gold" className="w-full max-w-xs" disabled={busy} onClick={depart}>
-            出発する
-          </Button>
+          {waitForHost ? (
+            <p className="animate-pulse-soft text-sm text-gold" role="status">
+              機長（{group?.hostName ?? "…"}）の出発を待っています…
+            </p>
+          ) : (
+            <Button size="lg" variant="gold" className="w-full max-w-xs" disabled={busy} onClick={depart}>
+              {gid ? "全員で出発する" : "出発する"}
+            </Button>
+          )}
           <button type="button" onClick={() => setPhase("checked")} className="min-h-11 text-sm text-mute">
             戻る
           </button>
@@ -205,10 +263,11 @@ function PassStep({ boarding }: { boarding: FlightSession }) {
       )}
       <header className="px-safe pt-safe absolute inset-x-0 top-0 z-10 flex items-center justify-between">
         <BackButton href="/" label="ホームへ" />
-        <button type="button" onClick={() => abandonFlight(boarding.id, "boarding_cancelled")} className="min-h-11 rounded-full border border-white/15 bg-night/60 px-4 text-sm text-mute backdrop-blur-md">
-          取り消す
+        <button type="button" onClick={cancel} className="min-h-11 rounded-full border border-white/15 bg-night/60 px-4 text-sm text-mute backdrop-blur-md">
+          {gid && !isHost ? "降りる" : "取り消す"}
         </button>
       </header>
+      {crew && <div className="px-safe absolute inset-x-0 top-[calc(var(--safe-top)+3.75rem)] z-10">{crew}</div>}
       <section className="px-safe pb-safe absolute inset-x-0 bottom-0 z-10">
         <div className="mx-auto flex max-w-md flex-col gap-4 pb-2">
           <div className={`transition-[margin] duration-700 ${phase === "checked" ? "mb-12" : ""}`}>

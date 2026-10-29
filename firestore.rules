@@ -1,0 +1,96 @@
+rules_version = '2';
+
+// StudyFlight のソーシャル機能（フレンド・記録の共有・同乗フライト）。
+// 学習記録の原本は各端末にあり、ここには本人が公開した要約だけを置く。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function pairId(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
+    function isFriend(uid) {
+      let f = /databases/$(database)/documents/friendships/$(pairId(me(), uid));
+      return exists(f) && get(f).data.status == 'accepted';
+    }
+    function onlyKeys(keys) { return request.resource.data.keys().hasOnly(keys); }
+    function str(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+
+    // プロフィール（表示名とフレンドコード）。名前の表示のため、ログインしていれば読める
+    match /users/{uid} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update: if signedIn() && uid == me()
+        && onlyKeys(['displayName', 'friendCode', 'createdAt', 'updatedAt'])
+        && str(request.resource.data.displayName, 24)
+        && request.resource.data.friendCode is string && request.resource.data.friendCode.matches('^[A-Z2-9]{8}$');
+      allow delete: if signedIn() && uid == me();
+    }
+
+    // フレンドコード → uid（コードを知っている人だけが申請できる）
+    match /friendCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && code.matches('^[A-Z2-9]{8}$')
+        && onlyKeys(['uid']) && request.resource.data.uid == me();
+      allow delete: if signedIn() && resource.data.uid == me();
+      allow update: if false;
+    }
+
+    // フレンド関係（ID は2人の uid を並べたもの）。申請した人以外が承認する
+    match /friendships/{id} {
+      allow read: if signedIn() && me() in resource.data.members;
+      allow create: if signedIn()
+        && onlyKeys(['members', 'requester', 'status', 'createdAt', 'updatedAt'])
+        && request.resource.data.members is list && request.resource.data.members.size() == 2
+        && request.resource.data.members[0] < request.resource.data.members[1]
+        && id == request.resource.data.members[0] + '_' + request.resource.data.members[1]
+        && me() in request.resource.data.members
+        && request.resource.data.requester == me()
+        && request.resource.data.status == 'pending';
+      allow update: if signedIn() && me() in resource.data.members
+        && me() != resource.data.requester
+        && resource.data.status == 'pending' && request.resource.data.status == 'accepted'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if signedIn() && me() in resource.data.members;
+    }
+
+    // 公開する学習記録の要約。本人と承認済みのフレンドだけが読める
+    match /stats/{uid} {
+      allow read: if signedIn() && (uid == me() || isFriend(uid));
+      allow write: if signedIn() && uid == me()
+        && onlyKeys(['displayName', 'updatedAt', 'totals', 'days', 'recent', 'streakDays', 'showSubjects'])
+        && request.resource.data.recent is list && request.resource.data.recent.size() <= 30
+        && request.resource.data.days is map && request.resource.data.days.size() <= 31;
+    }
+
+    // 同乗フライト。ID は推測できない乱数で、リンクを知っている人が参加できる
+    match /groups/{gid} {
+      allow get: if signedIn();
+      // 一覧は「自分が招待された／自分が機長」の便だけ
+      allow list: if signedIn() && (me() in resource.data.invited || resource.data.host == me());
+      allow create: if signedIn()
+        && onlyKeys(['host', 'hostName', 'originId', 'originCode', 'destinationId', 'destinationCode', 'plannedMinutes', 'status', 'invited', 'createdAt', 'departedAt'])
+        && request.resource.data.host == me()
+        && request.resource.data.status == 'boarding'
+        && request.resource.data.plannedMinutes is int && request.resource.data.plannedMinutes >= 5 && request.resource.data.plannedMinutes <= 600
+        && request.resource.data.invited is list && request.resource.data.invited.size() <= 30;
+      allow update: if signedIn() && resource.data.host == me()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'departedAt', 'invited'])
+        && request.resource.data.status in ['boarding', 'inflight', 'done', 'cancelled'];
+      allow delete: if signedIn() && resource.data.host == me();
+
+      // 同乗者。自分の行だけ書ける。出発後は新しく乗れない
+      match /members/{uid} {
+        allow read: if signedIn();
+        // 機長は便と自分の席を 1 回のまとめ書きで作るので、書き込み後の状態（getAfter）で確かめる
+        allow create: if signedIn() && uid == me()
+          && getAfter(/databases/$(database)/documents/groups/$(gid)).data.status == 'boarding'
+          && onlyKeys(['displayName', 'seat', 'status', 'focusSeconds', 'updatedAt'])
+          && str(request.resource.data.displayName, 24) && str(request.resource.data.seat, 4);
+        allow update: if signedIn() && uid == me()
+          && onlyKeys(['displayName', 'seat', 'status', 'focusSeconds', 'updatedAt'])
+          && request.resource.data.status in ['boarding', 'active', 'paused', 'landed', 'left'];
+        allow delete: if signedIn() && (uid == me() || get(/databases/$(database)/documents/groups/$(gid)).data.host == me());
+      }
+    }
+  }
+}

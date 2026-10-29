@@ -76,6 +76,8 @@ export interface FlightSession {
   /** 旧仕様（ダイバート）で記録された着陸空港。新しい記録では使わない */
   landedAirportId?: string | null;
   landedCode?: string | null;
+  /** 友達と一緒に乗った同乗フライトの ID（Firestore の groups） */
+  groupId?: string | null;
   /** このセッションで飛んだ区間（未設定は旧形式の記録） */
   legId?: string | null;
   /** セッション開始時点の区間の飛行済み秒数 */
@@ -166,6 +168,10 @@ export interface Preferences {
   flightCamera: FlightCamera;
   /** 地図の描画品質 */
   renderQuality: RenderQuality;
+  /** フレンドに学習記録の要約を公開する */
+  socialShareStats: boolean;
+  /** 公開する記録に科目名を含める */
+  socialShowSubjects: boolean;
   /** 行き先検索の許容幅（学習時間からの前後の分） */
   routeToleranceMinus: number;
   routeTolerancePlus: number;

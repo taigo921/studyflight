@@ -26,11 +26,15 @@ export function seatKind(seat: string): string {
   return c === "A" || c === "F" ? "窓側" : c === "C" || c === "D" ? "通路側" : "中央";
 }
 
-export function SeatMap({ value, onPick, seed }: { value: string | null; onPick: (seat: string) => void; seed: string }) {
-  const taken = useMemo(() => occupiedSeats(seed), [seed]);
+/**
+ * friends: 同乗フライトで友達が座っている席（席 → 名前）。指定すると演出の「使用中」の代わりに友達の席だけを埋める。
+ */
+export function SeatMap({ value, onPick, seed, friends }: { value: string | null; onPick: (seat: string) => void; seed: string; friends?: Map<string, string> }) {
+  const taken = useMemo(() => (friends ? new Set(friends.keys()) : occupiedSeats(seed)), [seed, friends]);
   const seat = (id: string) => {
     const busy = taken.has(id) && id !== value;
     const selected = id === value;
+    const friend = friends?.get(id);
     return (
       <button
         key={id}
@@ -38,11 +42,12 @@ export function SeatMap({ value, onPick, seed }: { value: string | null; onPick:
         disabled={busy}
         onClick={() => onPick(id)}
         aria-pressed={selected}
-        aria-label={`座席 ${id}（${seatKind(id)}）${busy ? "・使用中" : ""}`}
+        aria-label={`座席 ${id}（${seatKind(id)}）${friend && id !== value ? `・${friend}` : busy ? "・使用中" : ""}`}
         className={`relative h-11 w-full rounded-t-[12px] rounded-b-md border transition-colors ${
-          selected ? "border-gold bg-gold text-night" : busy ? "border-transparent bg-white/5" : "border-sky/30 bg-sky/10 hover:border-sky hover:bg-sky/25"
+          selected ? "border-gold bg-gold text-night" : friend ? "border-ok/60 bg-ok/20 text-ok" : busy ? "border-transparent bg-white/5" : "border-sky/30 bg-sky/10 hover:border-sky hover:bg-sky/25"
         }`}
       >
+        {friend && !selected && <span className="text-[12px] font-bold">{[...friend][0]}</span>}
         <span className={`absolute inset-x-1.5 bottom-1 h-1.5 rounded-sm ${selected ? "bg-night/30" : busy ? "bg-white/5" : "bg-sky/30"}`} aria-hidden />
         {selected && <span className="tabular text-[11px] font-bold">{id}</span>}
       </button>

@@ -25,6 +25,8 @@ export function defaultPreferences(): PreferencesRow {
     mapLabels: true,
     flightCamera: "follow",
     renderQuality: "auto",
+    socialShareStats: true,
+    socialShowSubjects: true,
     routeToleranceMinus: 10,
     routeTolerancePlus: 10,
     includeEstimatedRoutes: false,

@@ -18,7 +18,7 @@ export default defineConfig({
     {
       // 機能テスト。CI には GPU がなく 3D 地図のソフトウェア描画が重いため、WebGL を切って 2D 地図で検証する
       name: "iphone-chromium",
-      testIgnore: /map3d\.spec\.ts/,
+      testIgnore: /(map3d|social)\.spec\.ts/,
       use: {
         ...devices["iPhone 13"],
         // 環境に同梱された Chromium で iPhone の画面サイズ・タッチを再現する
@@ -38,6 +38,18 @@ export default defineConfig({
         browserName: "chromium",
         defaultBrowserType: "chromium",
         launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] },
+      },
+    },
+    {
+      // フレンド・同乗フライト（Firebase エミュレータに接続したビルドで実行: npm run test:e2e:social）
+      name: "social",
+      testMatch: /social\.spec\.ts/,
+      timeout: 120_000,
+      use: {
+        ...devices["iPhone 13"],
+        browserName: "chromium",
+        defaultBrowserType: "chromium",
+        launchOptions: { args: ["--disable-webgl", "--disable-3d-apis"] },
       },
     },
   ],

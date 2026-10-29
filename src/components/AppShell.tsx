@@ -14,12 +14,16 @@ import { registerServiceWorker } from "@/lib/sw-register";
 import { installAnalytics, track } from "@/lib/analytics";
 import { captureAttribution } from "@/lib/attribution";
 import { ConsentBanner } from "./ConsentBanner";
+import { GroupSync, SocialSync } from "./social/SocialSync";
+import { socialConfigured } from "@/lib/firebase";
 import { currentLang, setLang } from "@/i18n";
 import { toast } from "@/store/ui";
 
 const IMMERSIVE = new Set(["/flight", "/arrival", "/onboarding", "/boarding"]);
 /** 端末内のデータを使わない公開ページ（先行登録 LP・プライバシーポリシー） */
 export const PUBLIC_PATHS = new Set(["/lp", "/privacy"]);
+/** 招待リンクから初めて開いた人も、初回設定を挟まずに使えるページ */
+const NO_ONBOARDING = new Set(["/group", "/friends"]);
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = normalizePath(usePathname());
@@ -66,7 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // 初回はオンボーディングへ
   useEffect(() => {
     if (state !== "ready" || !prefs.loaded) return;
-    if (!prefs.onboardedAt && path !== "/onboarding" && !isPublic) router.replace("/onboarding/");
+    if (!prefs.onboardedAt && path !== "/onboarding" && !isPublic && !NO_ONBOARDING.has(path)) router.replace("/onboarding/");
   }, [state, prefs.loaded, prefs.onboardedAt, path, router, isPublic]);
 
   // アプリ内の言語は設定に従う（公開ページは ?lang= を優先）
@@ -104,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const redirecting = state === "ready" && (!prefs.loaded || (!prefs.onboardedAt && path !== "/onboarding"));
+  const redirecting = state === "ready" && (!prefs.loaded || (!prefs.onboardedAt && path !== "/onboarding" && !NO_ONBOARDING.has(path)));
   if (state === "loading" || redirecting) {
     return (
       <main className="flex min-h-dvh items-center justify-center" aria-busy="true">
@@ -126,6 +130,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       {!immersive && <BottomNav />}
       {/* 確認ダイアログは画面内のシートより手前に出す（後に描画する） */}
       <ConfirmHost />
+      {socialConfigured() && (
+        <>
+          <SocialSync />
+          <GroupSync />
+        </>
+      )}
     </>
   );
 }

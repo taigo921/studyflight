@@ -86,7 +86,8 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 ## 未完了・次にやること
 
 1. **公開済み**: https://taigo921.github.io/studyflight/ （LP: /studyflight/lp/、main への push で自動デプロイ）。この作業環境からは github.io・地図配信元に接続できないため、表示確認はユーザー端末で行う
-2. **要ユーザー承認（外部サービス）**: 先行登録・分析の送信先、時刻表 API、高解像度衛星画像、Supabase 同期、課金（Stripe / Apple）。docs/LICENSES_AND_COSTS.md
+2. **フレンド機能を有効にするには** docs/FIREBASE_SETUP.md の手順（Firebase プロジェクト作成・ルール貼り付け・GitHub Variables 登録）が必要
+3. **要ユーザー承認（外部サービス）**: 先行登録・分析の送信先、時刻表 API、高解像度衛星画像、Supabase 同期、課金（Stripe / Apple）。docs/LICENSES_AND_COSTS.md
 3. 衛星画像の既定は 2024 版（CC BY-NC-SA 4.0、非商用のみ）。**有料化・広告など商用要素を入れる前に** 2016 版・EOX 商用ライセンス・Mapbox のいずれかへ切替（docs/MAP_PROVIDERS.md）
 4. 既存画面の文字列を i18n 辞書（src/i18n/ja.ts, en.ts）へ移行。現在の英語対応: ナビ・共有・LP・プライバシー・同意・設定の言語欄
 5. iPhone 実機（Safari / ホーム画面 PWA）での検証: safe area、キーボード、バックグラウンド復帰、Wake Lock、Web Share（画像）、衛星画像
@@ -107,6 +108,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 | 2026-10-28 | GitHub に push、Pages 有効化、Actions でデプロイ | CI: lint/型/テスト/ビルド/デプロイ 成功 | 実機確認待ち |
 | 2026-10-28 | 統合指示書 Phase6: 利用権判定（サーバー発行前提）、紹介・ソーシャルの型、docs/ARCHITECTURE.md・LICENSES_AND_COSTS.md | lint/型/unit/build/E2E 成功 | 課金・同期は未実装（要承認） |
 | 2026-10-28 | 統合指示書 Phase5: 共有画像・UTM・分析イベント・同意・プライバシー・LP/先行登録・ja/en 土台 | lint/型/unit 120/build/E2E 12+3D 1 成功 | 送信先は要承認。既存画面の英語化は未完 |
+| 2026-10-29 | ソーシャル機能（Firebase、ユーザーが選択）: 匿名ログイン + 表示名、フレンドコード/招待リンクで申請・承認、フレンドの学習記録の要約を閲覧（公開・科目名は設定で選択、メモ・タスク名は送らない）、同乗フライト（招待・座席・機長の出発で全員出発・フライト中の同乗者の状態）。firestore.rules（エミュレータでルールテスト13件）、2端末想定の画面テスト（npm run test:e2e:social）。設定手順 docs/FIREBASE_SETUP.md | lint/型/unit 139/build/E2E 14+3D 1/rules 13/social 1 | **ユーザーが Firebase プロジェクトを作り、GitHub の Variables に設定値を登録するまで「準備中」表示** |
 | 2026-10-28 | ユーザー要望「途中で飛行が終わるのは嫌」: 分割飛行・上空での一時停止・続きから再開を廃止。飛行時間 = 学習時間（学習終了と同時に到着）。候補は推定飛行時間が学習時間 ± 許容幅の便のみ。早期着陸は区間 90% 以上なら目的地、手前なら機体の現在位置から最寄りの空港へダイバート（5分未満は欠航）。以前の途中停止の区間は次の搭乗券発行で取り消し | lint/型/unit 136/build/E2E 14+3D 1 | — |
 | 2026-10-28 | フライト中に地図を指で動かせるように（追尾中に触れると自由視点、「機体に戻る」で滑らかに追尾へ。機窓は固定）。科目画面に「歯学の科目をまとめて追加」（20科目、摂食嚥下は除外、同名は追加せずアーカイブ済みは復元） | lint/型/unit 136/build/E2E 14+3D 1 | — |
 | 2026-10-28 | 3D 機体を Boeing 787-9 風モデル（ユーザー提供のオリジナル GLB、public/models、生成スクリプトは assets/models）に。MapLibre カスタムレイヤー + Three.js（同じ WebGL を共有、モデルは 1 ジオメトリに結合し描画は機体と影の 2 回）。地球儀/メルカトルの行列を projectionTransition で混合（src/components/flight/plane3dMath.ts）。機首方位・上昇時の機首上げ、地面の影の離れで高度感。省電力・読み込み失敗時は 2D の機体。親から毎秒新しい座標配列が渡り描画ループが毎秒やり直されていた問題も修正 | lint/型/unit 134/build/E2E 14+3D 1 | 実機（iPhone）での描画負荷・見え方を要確認。地形なしの地図ではカメラ中心の標高が描画に反映されないため、機体は地面近くに描き影で高度を表現 |

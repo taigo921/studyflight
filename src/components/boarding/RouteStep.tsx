@@ -31,6 +31,8 @@ import { useAirports } from "@/features/useAirports";
 import { useRouteGraph } from "@/features/useRouteGraph";
 import { isWebGLAvailable } from "@/lib/world";
 import { toast } from "@/store/ui";
+import { GroupCreateSheet } from "@/components/social/GroupCreateSheet";
+import { socialConfigured } from "@/lib/firebase";
 
 const RoutePickerMap = dynamic(() => import("@/components/boarding/RoutePickerMap"), { ssr: false, loading: () => null });
 const noop = () => () => {};
@@ -85,6 +87,7 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
   const [pick, setPick] = useState<FlightCandidate | null>(null);
   const [manual, setManual] = useState<Airport | null>(null);
   const [listOpen, setListOpen] = useState(false);
+  const [groupOpen, setGroupOpen] = useState(false);
   const [finalOpen, setFinalOpen] = useState(false);
   const { busy, run } = useIssue(props);
   const panelRef = useRef<HTMLElement>(null);
@@ -296,8 +299,27 @@ function ChooseRoute(props: Props & { groundId: string | null }) {
           >
             {selected ? `${airportCodeOf(selected.airport)} 行きの搭乗券を発行` : "行き先を選んでください"}
           </Button>
+          {socialConfigured() && (
+            <button type="button" disabled={!selected || busy} onClick={() => setGroupOpen(true)} className="min-h-11 rounded-2xl text-sm font-semibold text-sky disabled:opacity-40">
+              友達と一緒に乗る
+            </button>
+          )}
         </div>
       </section>
+
+      {groupOpen && selected && (
+        <GroupCreateSheet
+          open
+          onClose={() => setGroupOpen(false)}
+          origin={origin}
+          destination={selected.airport}
+          plannedMinutes={minutes}
+          seat={props.seat}
+          onCreated={(groupId) =>
+            run({ plannedMinutes: minutes, origin, destination: selected.airport, routeSource: selected.source, carriers: selected.carriers, tripId: trip?.id ?? null, groupId })
+          }
+        />
+      )}
 
       <Sheet open={listOpen} onClose={() => setListOpen(false)} title="行き先を選ぶ" tall>
         {result && (

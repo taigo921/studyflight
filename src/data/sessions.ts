@@ -54,6 +54,8 @@ export interface BoardingInput {
   origin?: Airport;
   destination?: Airport;
   routeSource?: FlightLeg["routeSource"];
+  /** 同乗フライト（Firestore の groups）の ID */
+  groupId?: string | null;
   carriers?: string[];
   tripId?: string | null;
 }
@@ -133,6 +135,7 @@ export async function issueBoardingPass(input: BoardingInput): Promise<FlightSes
       completionType: null,
       abandonmentReason: null,
       legId: leg.id,
+      groupId: input.groupId ?? null,
       legStartSeconds: 0,
       legScheduledSeconds: leg.scheduledSeconds,
       routeDistanceKm: leg.distanceKm,

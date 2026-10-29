@@ -311,7 +311,7 @@ export default function FlightMapView(props: FlightMapViewProps) {
       <button
         type="button"
         onClick={backToPlane}
-        className="absolute top-[calc(var(--safe-top)+5.5rem)] left-1/2 z-20 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-gold/50 bg-night/80 px-5 text-sm font-semibold text-gold shadow-lg backdrop-blur-md"
+        className="absolute top-[calc(var(--safe-top)+9rem)] left-1/2 z-20 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-gold/50 bg-night/80 px-5 text-sm font-semibold text-gold shadow-lg backdrop-blur-md"
       >
         <span aria-hidden>✈︎</span> 機体に戻る
       </button>

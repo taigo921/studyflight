@@ -74,7 +74,7 @@ export const en: Messages = {
   },
   privacy: {
     title: "Privacy Policy",
-    updated: "Last updated: October 28, 2026",
+    updated: "Last updated: October 29, 2026",
     sections: [
       {
         h: "1. Data stored on your device",
@@ -100,7 +100,11 @@ export const en: Messages = {
         h: "6. Share images",
         p: "FlightLog share images are created on your device and are not sent anywhere until you share or save them. You can choose what appears on the image before sharing.",
       },
-      { h: "7. Contact", p: "For questions about this policy, please use the contact listed on the app's public page. We may update this policy and will announce changes on this page." },
+      {
+        h: "7. Friends (optional)",
+        p: "Only if you use the friends feature, an anonymous account is created on Google Firebase to store your display name, friend code, friendships, the study summary you allow to share (daily study time, streak, recent flight routes and minutes, and subject names if allowed) and the status of shared flights. Only friends you accept can see your summary. Notes and task names are never sent. Turning sharing off deletes the summary.",
+      },
+      { h: "8. Contact", p: "For questions about this policy, please use the contact listed on the app's public page. We may update this policy and will announce changes on this page." },
     ],
   },
   consent: {

@@ -48,3 +48,7 @@ next-env.d.ts
 /raw-data/
 
 !.env.example
+
+# Firebase エミュレータのログ
+*-debug.log
+.firebase/
