@@ -108,6 +108,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 | 2026-10-28 | GitHub に push、Pages 有効化、Actions でデプロイ | CI: lint/型/テスト/ビルド/デプロイ 成功 | 実機確認待ち |
 | 2026-10-28 | 統合指示書 Phase6: 利用権判定（サーバー発行前提）、紹介・ソーシャルの型、docs/ARCHITECTURE.md・LICENSES_AND_COSTS.md | lint/型/unit/build/E2E 成功 | 課金・同期は未実装（要承認） |
 | 2026-10-28 | 統合指示書 Phase5: 共有画像・UTM・分析イベント・同意・プライバシー・LP/先行登録・ja/en 土台 | lint/型/unit 120/build/E2E 12+3D 1 成功 | 送信先は要承認。既存画面の英語化は未完 |
+| 2026-10-29 | ルールの自動反映: GitHub シークレット FIREBASE_SERVICE_ACCOUNT を登録済み。main への push で CI がルールテスト後に本番へ反映（scripts/deploy-rules.sh） | CI | — |
 | 2026-10-29 | Firebase 本番接続: ユーザーが study-flight プロジェクト作成。API キーを Identity Toolkit で検証（承認済みドメインに taigo921.github.io を確認）、Web 設定を firebase.ts に埋め込み。本番ルールの動作を REST で確認（本人書き込み可・他人/一覧は拒否）。stats を本人が削除できない不具合を修正（ルール 14 件） | lint/型/unit 139/build/E2E 14/rules 14 | 本番に検査用の stats 文書が 1 件残った（匿名アカウントは削除済み）。修正ルールの貼り直し待ち |
 | 2026-10-29 | ソーシャル機能（Firebase、ユーザーが選択）: 匿名ログイン + 表示名、フレンドコード/招待リンクで申請・承認、フレンドの学習記録の要約を閲覧（公開・科目名は設定で選択、メモ・タスク名は送らない）、同乗フライト（招待・座席・機長の出発で全員出発・フライト中の同乗者の状態）。firestore.rules（エミュレータでルールテスト13件）、2端末想定の画面テスト（npm run test:e2e:social）。設定手順 docs/FIREBASE_SETUP.md | lint/型/unit 139/build/E2E 14+3D 1/rules 13/social 1 | **ユーザーが Firebase プロジェクトを作り、GitHub の Variables に設定値を登録するまで「準備中」表示** |
 | 2026-10-28 | ユーザー要望「途中で飛行が終わるのは嫌」: 分割飛行・上空での一時停止・続きから再開を廃止。飛行時間 = 学習時間（学習終了と同時に到着）。候補は推定飛行時間が学習時間 ± 許容幅の便のみ。早期着陸は区間 90% 以上なら目的地、手前なら機体の現在位置から最寄りの空港へダイバート（5分未満は欠航）。以前の途中停止の区間は次の搭乗券発行で取り消し | lint/型/unit 136/build/E2E 14+3D 1 | — |
