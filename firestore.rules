@@ -56,7 +56,9 @@ service cloud.firestore {
     // 公開する学習記録の要約。本人と承認済みのフレンドだけが読める
     match /stats/{uid} {
       allow read: if signedIn() && (uid == me() || isFriend(uid));
-      allow write: if signedIn() && uid == me()
+      // 公開をやめたら本人が削除できる
+      allow delete: if signedIn() && uid == me();
+      allow create, update: if signedIn() && uid == me()
         && onlyKeys(['displayName', 'updatedAt', 'totals', 'days', 'recent', 'streakDays', 'showSubjects'])
         && request.resource.data.recent is list && request.resource.data.recent.size() <= 30
         && request.resource.data.days is map && request.resource.data.days.size() <= 31;

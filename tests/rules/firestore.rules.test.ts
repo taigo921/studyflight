@@ -79,6 +79,11 @@ describe("stats（学習記録の要約）", () => {
     await assertFails(setDoc(doc(db(B), "stats", A), stats));
     await assertFails(setDoc(doc(db(A), "stats", A), { ...stats, recent: Array.from({ length: 31 }, () => ({})) }));
   });
+  it("公開をやめると本人だけが削除できる", async () => {
+    await seed(`stats/${A}`, stats);
+    await assertFails(deleteDoc(doc(db(B), "stats", A)));
+    await assertSucceeds(deleteDoc(doc(db(A), "stats", A)));
+  });
   it("承認済みのフレンドだけが読める（申請中や他人は読めない）", async () => {
     await seed(`stats/${A}`, stats);
     await assertFails(getDoc(doc(db(B), "stats", A)));

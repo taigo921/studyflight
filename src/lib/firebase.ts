@@ -1,7 +1,7 @@
 // Firebase（ソーシャル機能: フレンド・記録の共有・同乗フライト）。
 //
-// - 設定は環境変数 NEXT_PUBLIC_FIREBASE_*（Firebase の Web 用設定は公開前提の識別子。守りは Firestore のルール）
-// - 未設定ならソーシャル機能は表示しない（学習・記録は端末だけで今まで通り動く）
+// - 設定は下の DEFAULTS（公開版）か環境変数 NEXT_PUBLIC_FIREBASE_*。Web 用設定は公開前提の識別子で、守りは Firestore のルール
+// - 学習・記録は今まで通り端末だけで動き、ソーシャル機能を使うときだけ Firebase につなぐ
 // - SDK は使うときだけ読み込む（初回表示を重くしない）
 // - NEXT_PUBLIC_FIREBASE_EMULATOR=1 でローカルのエミュレータにつなぐ（テスト用）
 
@@ -9,11 +9,18 @@ import type { FirebaseApp } from "firebase/app";
 import type { Auth } from "firebase/auth";
 import type { Firestore } from "firebase/firestore";
 
+// 公開版の Firebase プロジェクト（study-flight）の Web 用設定。環境変数があればそちらを使う
+const DEFAULTS = {
+  apiKey: "AIzaSyDA-bZj7TUIMhV59b3mcW141gTNxbcMukE",
+  authDomain: "study-flight.firebaseapp.com",
+  projectId: "study-flight",
+  appId: "1:900990822401:web:97c9f0128254c621c47800",
+};
 const config = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || DEFAULTS.apiKey,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || DEFAULTS.authDomain,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || DEFAULTS.projectId,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || DEFAULTS.appId,
 };
 const EMULATOR = process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "1";
 
