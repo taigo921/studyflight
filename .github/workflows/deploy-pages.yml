@@ -35,6 +35,12 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm run test:rules
+      # テストに通ったルールを本番の Firestore に反映（シークレット FIREBASE_SERVICE_ACCOUNT がなければスキップ）
+      - name: Deploy Firestore rules
+        if: github.ref == 'refs/heads/main'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: npm run deploy:rules
       - name: Build (static export)
         # フレンド機能の Firebase 設定（リポジトリの Settings → Secrets and variables → Actions → Variables）。
         # 未設定ならフレンド機能は「準備中」と表示される

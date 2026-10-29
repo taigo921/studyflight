@@ -56,3 +56,11 @@
 - ログインは匿名です。端末のデータ（Safari のサイトデータ）を消すとフレンド関係も消えます
 - 公開されるのは表示名と学習記録の要約（日別の時間・連続日数・最近の便）だけです。メモ・タスク名は送りません。科目名は設定で非公開にできます
 - ローカルでの検証: `npm run test:rules`（ルール）、`npm run test:e2e:social`（2 台の端末を想定した画面テスト）。どちらも Firebase エミュレータを使い、本番には接続しません
+
+## ルールの自動反映（GitHub Actions）
+
+`firestore.rules` を変えて main に push すると、CI がエミュレータでルールテストを通したあと本番に反映する（`npm run deploy:rules`）。
+必要なのはリポジトリのシークレット `FIREBASE_SERVICE_ACCOUNT`（サービスアカウントの JSON の中身）だけ。未設定なら反映はスキップされる。
+
+鍵の作り方: Firebase コンソール → 歯車 → プロジェクトの設定 →「サービス アカウント」→「新しい秘密鍵を生成」。
+鍵は強い権限を持つので、チャットや Git に貼らない。GitHub の Settings → Secrets and variables → Actions →「Secrets」に登録する。
