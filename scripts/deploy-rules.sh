@@ -33,12 +33,12 @@ case "$info" in
 esac
 
 out="$dir/out.txt"
-if GOOGLE_APPLICATION_CREDENTIALS="$key" npx firebase deploy --only firestore:rules --project study-flight --non-interactive >"$out" 2>&1; then
+if GOOGLE_APPLICATION_CREDENTIALS="$key" node scripts/deploy-rules.mjs >"$out" 2>&1; then
   note notice "ルールを本番に反映しました"
   tail -5 "$out"
   exit 0
 fi
 cat "$out"
-msg="$(grep -iE 'error|denied|permission|403|401|invalid' "$out" | tail -6 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+msg="$(grep -iE 'error|denied|permission|403|401|invalid|message' "$out" | tail -6 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
 note error "反映に失敗しました: ${msg:-$(tail -6 "$out" | awk '{printf "%s%%0A", $0}')}"
 exit 1
