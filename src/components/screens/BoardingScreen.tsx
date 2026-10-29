@@ -23,7 +23,7 @@ import { useBoardingFlight, useOpenFlight, usePreferences, useSessions, useSubje
 import { useAirports } from "@/features/useAirports";
 import { isWebGLAvailable } from "@/lib/world";
 import { toast } from "@/store/ui";
-import { groupLink, setGroupStatus, updateMember } from "@/data/social";
+import { setGroupStatus, shareableGroupLink, updateMember } from "@/data/social";
 import { useGroup, useGroupMembers, useSocial } from "@/features/social";
 import { shareLink } from "@/lib/share-link";
 
@@ -203,7 +203,7 @@ function PassStep({ boarding }: { boarding: FlightSession }) {
           .map((m) => `${m.displayName}（${m.seat}）`)
           .join("、")}
       </p>
-      <button type="button" onClick={() => shareLink(groupLink(gid), `StudyFlight で一緒に勉強しよう！ ${boarding.originCode}→${boarding.destinationCode}（${boarding.plannedSeconds / 60}分）の便に乗って`)} className="min-h-9 shrink-0 rounded-full border border-sky/40 px-3 text-xs font-semibold text-sky">
+      <button type="button" onClick={() => shareLink(shareableGroupLink(gid), `StudyFlight で一緒に勉強しよう！ ${boarding.originCode}→${boarding.destinationCode}（${boarding.plannedSeconds / 60}分）の便に乗って`)} className="min-h-9 shrink-0 rounded-full border border-sky/40 px-3 text-xs font-semibold text-sky">
         招待
       </button>
     </div>

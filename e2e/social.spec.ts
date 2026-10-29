@@ -78,3 +78,37 @@ test("友達を追加し、記録を見て、同じ便に乗って一緒に出�
 
   await ctxB.close();
 });
+
+test("アカウントをメールで保存すると、別のブラウザ（LINE の中 → Safari など）でも同じアカウントでログインできる", async ({ page: a, browser }) => {
+  const email = `pilot${Date.now()}@example.com`;
+  await skipOnboarding(a);
+  await a.goto("/friends/");
+  await startSocial(a, "たいご");
+  const code = (await a.getByTestId("my-friend-code").textContent())!;
+  const card = a.getByTestId("account-card");
+  await card.getByLabel("メールアドレス").fill(email);
+  await card.getByLabel(/パスワード/).fill("study-flight-1");
+  await card.getByRole("button", { name: "アカウントを保存" }).click();
+  await expect(card).toContainText(`保存済み: ${email}`);
+
+  // 別のブラウザ（保存場所が別）で開き、ログインすると同じフレンドコードのアカウントになる
+  const ctx2 = await browser.newContext({ ...devices["iPhone 13"], baseURL: "http://127.0.0.1:4173" });
+  const c = await ctx2.newPage();
+  await c.goto("/friends/");
+  await c.getByRole("button", { name: "アカウントを保存済みの方はログイン" }).click();
+  await c.getByLabel("メールアドレス").fill(email);
+  await c.getByLabel("パスワード").fill("study-flight-1");
+  await c.getByRole("button", { name: "ログイン", exact: true }).click();
+  await expect(c.getByTestId("my-friend-code")).toHaveText(code);
+  await expect(c.getByTestId("account-card")).toContainText(`保存済み: ${email}`);
+
+  // 間違ったパスワードは日本語で案内
+  await c.getByRole("button", { name: "ログアウト" }).click();
+  await c.getByRole("button", { name: "ログアウト" }).last().click();
+  await c.getByRole("button", { name: "アカウントを保存済みの方はログイン" }).click();
+  await c.getByLabel("メールアドレス").fill(email);
+  await c.getByLabel("パスワード").fill("wrong-password");
+  await c.getByRole("button", { name: "ログイン", exact: true }).click();
+  await expect(c.getByText("メールアドレスかパスワードが違います")).toBeVisible();
+  await ctx2.close();
+});

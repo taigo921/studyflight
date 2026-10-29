@@ -33,8 +33,8 @@ case "$info" in
 esac
 
 out="$dir/out.txt"
-if GOOGLE_APPLICATION_CREDENTIALS="$key" node scripts/deploy-rules.mjs >"$out" 2>&1; then
-  note notice "ルールを本番に反映しました"
+if GOOGLE_APPLICATION_CREDENTIALS="$key" node scripts/deploy-rules.mjs >"$out" 2>&1 && GOOGLE_APPLICATION_CREDENTIALS="$key" node scripts/sync-auth-config.mjs >>"$out" 2>&1; then
+  note notice "ルールとログイン設定を本番に反映しました: $(grep -E '^auth config' "$out" | head -1)"
   tail -5 "$out"
   exit 0
 fi

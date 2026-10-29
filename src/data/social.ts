@@ -222,3 +222,68 @@ export function friendLink(code: string): string {
   const base = typeof window === "undefined" ? "" : `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}`;
   return `${base}/friends/?add=${encodeURIComponent(code)}`;
 }
+
+// ---------------------------------------------------------------------------
+// アカウントの保存とログイン（メール + パスワード）
+// iPhone では LINE の中・Safari・ホーム画面のアプリで保存場所が分かれるため、
+// 匿名のアカウントをメールで保存し、別の場所ではログインして同じアカウントを使う。
+
+const AUTH_ERRORS: Record<string, string> = {
+  "auth/email-already-in-use": "このメールアドレスはすでに使われています。「ログイン」から入ってください",
+  "auth/credential-already-in-use": "このメールアドレスはすでに使われています。「ログイン」から入ってください",
+  "auth/invalid-email": "メールアドレスの形が正しくありません",
+  "auth/weak-password": "パスワードは6文字以上にしてください",
+  "auth/missing-password": "パスワードを入力してください",
+  "auth/invalid-credential": "メールアドレスかパスワードが違います",
+  "auth/wrong-password": "メールアドレスかパスワードが違います",
+  "auth/user-not-found": "メールアドレスかパスワードが違います",
+  "auth/too-many-requests": "何度も失敗したため、しばらく待ってからお試しください",
+  "auth/network-request-failed": "通信できませんでした。電波の良いところでお試しください",
+  "auth/operation-not-allowed": "メールでのログインはまだ準備中です",
+};
+
+export function authErrorMessage(e: unknown): string {
+  const code = (e as { code?: string })?.code ?? "";
+  return AUTH_ERRORS[code] ?? (e instanceof Error ? e.message : "うまくいきませんでした");
+}
+
+/** いまの（匿名の）アカウントにメールとパスワードを付けて保存する。uid・フレンドはそのまま。 */
+export async function saveAccountWithEmail(email: string, password: string): Promise<string> {
+  const { auth } = await getFirebase();
+  const { EmailAuthProvider, linkWithCredential } = await import("firebase/auth");
+  await auth.authStateReady();
+  if (!auth.currentUser) throw new Error("先にフレンド機能をはじめてください");
+  const cred = await linkWithCredential(auth.currentUser, EmailAuthProvider.credential(email.trim(), password));
+  return cred.user.email ?? email.trim();
+}
+
+/** 保存したアカウントにログインする（この場所の匿名アカウントから切り替わる）。 */
+export async function signInWithEmail(email: string, password: string): Promise<void> {
+  const { auth } = await getFirebase();
+  const { signInWithEmailAndPassword } = await import("firebase/auth");
+  await signInWithEmailAndPassword(auth, email.trim(), password);
+}
+
+export async function sendPasswordReset(email: string): Promise<void> {
+  const { auth } = await getFirebase();
+  const { sendPasswordResetEmail } = await import("firebase/auth");
+  auth.languageCode = "ja";
+  await sendPasswordResetEmail(auth, email.trim());
+}
+
+export async function signOutSocial(): Promise<void> {
+  const { auth } = await getFirebase();
+  const { signOut } = await import("firebase/auth");
+  await signOut(auth);
+}
+
+/** LINE などアプリ内ブラウザで開いたときに外部ブラウザ（Safari）で開かせる印 */
+function external(url: string): string {
+  return `${url}${url.includes("?") ? "&" : "?"}openExternalBrowser=1`;
+}
+export function shareableGroupLink(gid: string): string {
+  return external(groupLink(gid));
+}
+export function shareableFriendLink(code: string): string {
+  return external(friendLink(code));
+}

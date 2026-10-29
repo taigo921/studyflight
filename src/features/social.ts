@@ -11,13 +11,15 @@ export interface SocialState {
   status: SocialStatus;
   uid: string | null;
   profile: Profile | null;
+  /** メールで保存したアカウントならそのメール（匿名のままなら null） */
+  email: string | null;
 }
 
 // ログイン状態はアプリ全体で 1 つだけ購読する
-let state: SocialState = { status: socialConfigured() ? "loading" : "disabled", uid: null, profile: null };
+let state: SocialState = { status: socialConfigured() ? "loading" : "disabled", uid: null, profile: null, email: null };
 const listeners = new Set<() => void>();
 let started = false;
-const SERVER: SocialState = { status: "loading", uid: null, profile: null };
+const SERVER: SocialState = { status: "loading", uid: null, profile: null, email: null };
 
 function set(next: SocialState) {
   state = next;
@@ -32,23 +34,28 @@ function start() {
       const { auth } = await getFirebase();
       const { onAuthStateChanged } = await import("firebase/auth");
       onAuthStateChanged(auth, async (user) => {
-        if (!user) return set({ status: "signedOut", uid: null, profile: null });
+        if (!user) return set({ status: "signedOut", uid: null, profile: null, email: null });
         try {
           const profile = await getProfile(user.uid);
-          set({ status: profile ? "ready" : "needsProfile", uid: user.uid, profile });
+          set({ status: profile ? "ready" : "needsProfile", uid: user.uid, profile, email: user.email });
         } catch {
-          set({ status: "error", uid: user.uid, profile: null });
+          set({ status: "error", uid: user.uid, profile: null, email: user.email });
         }
       });
     } catch {
-      set({ status: "error", uid: null, profile: null });
+      set({ status: "error", uid: null, profile: null, email: null });
     }
   })();
 }
 
 /** プロフィールを作った・変えたあとに呼ぶ */
 export function setSocialProfile(profile: Profile) {
-  set({ status: "ready", uid: profile.uid, profile });
+  set({ ...state, status: "ready", uid: profile.uid, profile });
+}
+
+/** アカウントをメールで保存したあとに呼ぶ */
+export function setSocialEmail(email: string) {
+  set({ ...state, email });
 }
 
 export function useSocial(): SocialState {

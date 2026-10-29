@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { updatePreferences } from "@/data/settings";
-import { acceptFriend, addFriendByCode, friendLink, normalizeFriendCode, removeFriend, updateDisplayName, type Friendship } from "@/data/social";
+import { acceptFriend, addFriendByCode, normalizeFriendCode, removeFriend, shareableFriendLink, signOutSocial, updateDisplayName, type Friendship } from "@/data/social";
 import { formatDuration } from "@/domain/format";
 import { dayKey } from "@/domain/zoned";
 import { useGoals, usePreferences } from "@/features/data-hooks";
@@ -18,6 +18,8 @@ import { setSocialProfile, useDisplayNames, useFriendships, useFriendStats, useG
 import { shareLink } from "@/lib/share-link";
 import { confirmDialog, toast } from "@/store/ui";
 import { SocialSetup } from "./SocialSetup";
+import { SaveAccountForm } from "./AccountForms";
+import { InAppBrowserNotice } from "./InAppBrowserNotice";
 
 function FriendRow({ uid, name, onRemove }: { uid: string; name: string; onRemove: () => void }) {
   const stats = useFriendStats(uid);
@@ -106,6 +108,7 @@ export function FriendsScreen() {
   return (
     <main className="px-safe mx-auto max-w-xl pb-8">
       <PageHeader title="フレンド" back="/" />
+      <InAppBrowserNotice />
       {social.status === "loading" && <p className="text-sm text-mute">読み込み中…</p>}
       {social.status === "error" && <Card className="text-sm text-danger">フレンド機能に接続できません。通信状況を確認してください。</Card>}
       {(social.status === "signedOut" || social.status === "needsProfile") && <SocialSetup />}
@@ -146,7 +149,7 @@ export function FriendsScreen() {
                 </p>
               </div>
             </div>
-            <Button variant="secondary" onClick={() => shareLink(friendLink(social.profile!.friendCode), `StudyFlight でフレンドになろう！ フレンドコード: ${social.profile!.friendCode}`)}>
+            <Button variant="secondary" onClick={() => shareLink(shareableFriendLink(social.profile!.friendCode), `StudyFlight でフレンドになろう！ フレンドコード: ${social.profile!.friendCode}`)}>
               <IconShare size={20} /> 招待リンクを送る
             </Button>
           </Card>
@@ -226,6 +229,36 @@ export function FriendsScreen() {
             </Card>
             {outgoing.length > 0 && <p className="px-1 text-xs text-mute">承認待ち: {outgoing.map((f) => nameOf(other(f))).join("、")}</p>}
           </section>
+
+          <Card className="flex flex-col gap-3" data-testid="account-card">
+            <SectionTitle>アカウント</SectionTitle>
+            {social.email ? (
+              <>
+                <p className="text-sm">
+                  <span className="text-mute">保存済み: </span>
+                  <span className="font-semibold">{social.email}</span>
+                </p>
+                <p className="text-xs text-mute">ほかの場所（Safari・ホーム画面のアプリ・別の端末）では、フレンドの画面の「ログイン」からこのメールで入れます。</p>
+                <button
+                  type="button"
+                  className="min-h-11 self-start text-sm text-mute"
+                  onClick={async () => {
+                    const ok = await confirmDialog({ title: "ログアウトしますか？", message: "この場所ではフレンド機能が使えなくなります。保存したメールでいつでもログインし直せます。", confirmLabel: "ログアウト" });
+                    if (ok) await signOutSocial();
+                  }}
+                >
+                  ログアウト
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-mute">
+                  iPhone では LINE の中・Safari・ホーム画面のアプリで保存場所が別々です。メールで保存しておくと、どこからでも同じアカウント（同じフレンド）でログインできます。保存しないままこの場所のデータが消えると、アカウントも消えます。
+                </p>
+                <SaveAccountForm />
+              </>
+            )}
+          </Card>
 
           <Card className="flex flex-col gap-1">
             <SectionTitle>公開する内容</SectionTitle>

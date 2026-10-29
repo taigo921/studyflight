@@ -18,6 +18,7 @@ import { useGroup, useGroupMembers, useSocial } from "@/features/social";
 import { useAirports } from "@/features/useAirports";
 import { toast } from "@/store/ui";
 import { SocialSetup } from "./SocialSetup";
+import { InAppBrowserNotice } from "./InAppBrowserNotice";
 
 export function GroupJoinScreen() {
   const gid = useSearchParams().get("id");
@@ -78,6 +79,7 @@ export function GroupJoinScreen() {
   return (
     <main className="px-safe mx-auto max-w-xl pb-10">
       <PageHeader title="同乗フライト" subtitle="友達と同じ便で勉強する" back="/" />
+      <InAppBrowserNotice />
       {(social.status === "signedOut" || social.status === "needsProfile") && <SocialSetup title="同乗するには表示名を決めてください" />}
       {social.status === "loading" || (ready && group === undefined) ? <p className="text-sm text-mute">読み込み中…</p> : null}
       {ready && group === null && <Card className="text-sm text-mute">この便は見つかりません。リンクが正しいか確認してください。</Card>}
