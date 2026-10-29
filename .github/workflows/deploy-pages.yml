@@ -38,6 +38,8 @@ jobs:
       # テストに通ったルールを本番の Firestore に反映（シークレット FIREBASE_SERVICE_ACCOUNT がなければスキップ）
       - name: Deploy Firestore rules
         if: github.ref == 'refs/heads/main'
+        # ルールの反映に失敗してもアプリの公開は止めない（理由は注釈に出る）
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: npm run deploy:rules
