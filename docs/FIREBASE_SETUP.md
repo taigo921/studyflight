@@ -1,6 +1,6 @@
 # フレンド機能（Firebase）の設定手順
 
-> 公開版は設定済み（プロジェクト `study-flight`、Web 用設定は `src/lib/firebase.ts` の DEFAULTS）。別のプロジェクトに切り替えるときだけ、下の手順 5 の Variables で上書きする。ルールを変えたら Firestore の「ルール」に貼り直すこと。
+> 公開版は設定済み（プロジェクト `study-flight`、Web 用設定は `src/lib/firebase.ts` の DEFAULTS）。別のプロジェクトに切り替えるときだけ、下の手順 5 の Variables で上書きする。ルールは main への push で自動反映される（下の「ルールの自動反映」）。
 
 フレンド・記録の共有・同乗フライトは Firebase を使います。下の手順を一度だけ行うと、公開ページでフレンド機能が使えるようになります（未設定の間は「準備中」と表示されます）。
 
@@ -59,7 +59,7 @@
 
 ## ルールの自動反映（GitHub Actions）
 
-`firestore.rules` を変えて main に push すると、CI がエミュレータでルールテストを通したあと本番に反映する（`npm run deploy:rules`）。
+`firestore.rules` を変えて main に push すると、CI がエミュレータでルールテストを通したあと、Firebase Rules API で本番に反映する（`npm run deploy:rules`）。結果は CI の注釈（deploy-rules）に出る。
 必要なのはリポジトリのシークレット `FIREBASE_SERVICE_ACCOUNT`（サービスアカウントの JSON の中身）だけ。未設定なら反映はスキップされる。
 
 鍵の作り方: Firebase コンソール → 歯車 → プロジェクトの設定 →「サービス アカウント」→「新しい秘密鍵を生成」。
