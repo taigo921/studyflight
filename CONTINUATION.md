@@ -86,7 +86,7 @@ E2E は環境同梱の Chromium を使う（`@playwright/test` は 1.63.0 に固
 ## 未完了・次にやること
 
 1. **公開済み**: https://taigo921.github.io/studyflight/ （LP: /studyflight/lp/、main への push で自動デプロイ）。この作業環境からは github.io・地図配信元に接続できないため、表示確認はユーザー端末で行う
-2. フレンド機能: Firebase プロジェクト `study-flight` を作成済み（匿名ログイン・承認済みドメイン・Firestore 東京）。Web 設定はコードに埋め込み。**firestore.rules を変えたらコンソールに貼り直す**（2026-10-29 に stats の削除を許可する修正あり。貼り直し待ち）
+2. フレンド機能: Firebase プロジェクト `study-flight` を作成済み（匿名ログイン・承認済みドメイン・Firestore 東京）。Web 設定はコードに埋め込み。**firestore.rules を変えたらコンソールに貼り直す**（2026-10-29 に stats の削除を許可する修正を貼り直し済み・本番で確認済み）
 3. **要ユーザー承認（外部サービス）**: 先行登録・分析の送信先、時刻表 API、高解像度衛星画像、Supabase 同期、課金（Stripe / Apple）。docs/LICENSES_AND_COSTS.md
 3. 衛星画像の既定は 2024 版（CC BY-NC-SA 4.0、非商用のみ）。**有料化・広告など商用要素を入れる前に** 2016 版・EOX 商用ライセンス・Mapbox のいずれかへ切替（docs/MAP_PROVIDERS.md）
 4. 既存画面の文字列を i18n 辞書（src/i18n/ja.ts, en.ts）へ移行。現在の英語対応: ナビ・共有・LP・プライバシー・同意・設定の言語欄
